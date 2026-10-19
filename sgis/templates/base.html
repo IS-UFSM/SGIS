@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block titulo %}SGIS{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#1a6b4f',
+              hover: '#145a42',
+              light: '#e8f5e9',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-full font-sans antialiased text-slate-800 bg-slate-50 flex flex-col {% block body_class %}{% endblock %}">
+  {% block conteudo %}{% endblock %}
+</body>
+</html>
