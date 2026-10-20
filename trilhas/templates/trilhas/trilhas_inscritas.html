@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block titulo %}Minhas trilhas — SGIS{% endblock %}
+
+{% block conteudo %}
+{% include 'partials/header.html' %}
+
+<main class="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900">Minhas trilhas</h1>
+    <p class="text-slate-500 mt-1 text-sm">Trilhas em que a Incubadora Social inscreveu o seu empreendimento.</p>
+  </div>
+
+  <div class="mt-6 space-y-3">
+    {% for inscricao in inscricoes %}
+      {% ifchanged inscricao.empreendimento_id %}
+        <h2 class="pt-4 first:pt-0 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          {{ inscricao.empreendimento.nome }}
+        </h2>
+      {% endifchanged %}
+
+      <article class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm {% if inscricao.status == 'pausada' %}opacity-75{% endif %}">
+        <div class="flex items-start justify-between gap-3">
+          <h3 class="font-semibold text-slate-900">{{ inscricao.trilha.titulo }}</h3>
+          {% if inscricao.status == 'ativa' %}
+            <span class="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">{{ inscricao.get_status_display }}</span>
+          {% else %}
+            <span class="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">{{ inscricao.get_status_display }}</span>
+          {% endif %}
+        </div>
+        {% if inscricao.trilha.descricao %}
+          <p class="mt-2 text-sm text-slate-600 whitespace-pre-line">{{ inscricao.trilha.descricao }}</p>
+        {% endif %}
+        <p class="mt-3 text-xs text-slate-500">Inscrito em {{ inscricao.inscrito_em|date:"d/m/Y" }}</p>
+      </article>
+    {% empty %}
+      <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+        <p class="text-slate-600 font-medium">Seu empreendimento ainda não está inscrito em nenhuma trilha.</p>
+      </div>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}
