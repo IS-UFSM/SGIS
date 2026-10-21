@@ -1,6 +1,14 @@
 from django import forms
 from django.contrib.auth import authenticate
 
+from .models import Usuario
+
+CLASSES_INPUT = (
+    'w-full px-3.5 py-2.5 text-slate-800 bg-slate-50 border border-slate-300 '
+    'rounded-lg focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 '
+    'placeholder:text-slate-400 transition duration-150'
+)
+
 
 class LoginForm(forms.Form):
     """Formulário de login por email e senha."""
@@ -54,3 +62,70 @@ class LoginForm(forms.Form):
 
     def get_user(self):
         return self.user_cache
+
+
+class UsuarioCadastroForm(forms.ModelForm):
+    """IS cria um usuário professor ou de empreendimento.
+
+    O papel é limitado aos dois perfis que a IS pode criar; mesmo
+    manipulando o POST, admin e IS não passam pela validação.
+    """
+
+    senha = forms.CharField(
+        label='Senha',
+        min_length=8,
+        help_text='Mínimo de 8 caracteres.',
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Senha inicial do usuário',
+            'autocomplete': 'new-password',
+            'class': CLASSES_INPUT,
+        }),
+    )
+
+    class Meta:
+        model = Usuario
+        fields = ['nome', 'email', 'papel']
+        labels = {
+            'nome': 'Nome completo',
+            'papel': 'Perfil',
+        }
+        widgets = {
+            'nome': forms.TextInput(attrs={
+                'placeholder': 'Ex.: Maria da Silva',
+                'autofocus': True,
+                'class': CLASSES_INPUT,
+            }),
+            'email': forms.EmailInput(attrs={
+                'placeholder': 'seu@email.com',
+                'autocomplete': 'email',
+                'class': CLASSES_INPUT,
+            }),
+            'papel': forms.Select(attrs={'class': CLASSES_INPUT}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        papeis_is = (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDIMENTO)
+        self.fields['papel'].choices = [
+            c for c in Usuario.Papel.choices if c[0] in papeis_is
+        ]
+
+    def clean_nome(self):
+        nome = self.cleaned_data['nome'].strip()
+        if not nome:
+            raise forms.ValidationError('Informe um nome.')
+        return nome
+
+    def clean_senha(self):
+        senha = self.cleaned_data['senha']
+        if senha.strip() == '':
+            raise forms.ValidationError('Informe uma senha.')
+        return senha
+
+    def save(self, commit=True):
+        """Cria o usuário com a senha já criptografada."""
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['senha'])
+        if commit:
+            user.save()
+        return user

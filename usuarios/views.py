@@ -1,8 +1,11 @@
+from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from .forms import LoginForm
+from .decorators import papel_requerido
+from .forms import LoginForm, UsuarioCadastroForm
+from .models import Usuario
 
 
 def login_view(request):
@@ -30,3 +33,16 @@ def logout_view(request):
 def home_view(request):
     """Página inicial após o login."""
     return render(request, 'usuarios/home.html')
+
+
+@papel_requerido(Usuario.Papel.IS)
+def criar_usuario_view(request):
+    """IS cria um usuário novo (professor ou empreendimento)."""
+    form = UsuarioCadastroForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        usuario = form.save()
+        messages.success(request, f'Usuário "{usuario.nome}" criado com sucesso.')
+        return redirect('criar_usuario')
+
+    return render(request, 'usuarios/criar_usuario.html', {'form': form})

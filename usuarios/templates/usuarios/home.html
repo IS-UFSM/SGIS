@@ -31,7 +31,10 @@
       </div>
     {% elif user.papel == 'is' %}
       <div class="mt-6 flex flex-wrap gap-3">
-        <a href="{% url 'trilhas:todas' %}" class="py-2.5 px-4 bg-brand hover:bg-brand-hover text-white text-sm font-semibold rounded-lg shadow-md shadow-brand/20 transition duration-150">
+        <a href="{% url 'criar_usuario' %}" class="py-2.5 px-4 bg-brand hover:bg-brand-hover text-white text-sm font-semibold rounded-lg shadow-md shadow-brand/20 transition duration-150">
+          Criar usuário
+        </a>
+        <a href="{% url 'trilhas:todas' %}" class="py-2.5 px-4 text-sm font-semibold text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition duration-150">
           Ver todas as trilhas
         </a>
         <a href="{% url 'trilhas:inscricoes' %}" class="py-2.5 px-4 text-sm font-semibold text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition duration-150">
