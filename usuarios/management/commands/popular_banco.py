@@ -1,4 +1,5 @@
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from empreendimentos.models import Empreendimento
@@ -11,6 +12,8 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        if not settings.DEBUG:
+            raise CommandError('Dados de mock nunca vão para produção (RN-MVP-10).')
         self.stdout.write(self.style.NOTICE('Iniciando carga de dados de mock...'))
 
         # 1. Usuários de teste para cada papel

@@ -11,6 +11,7 @@ sgisEnv/
 env/
 venv/
 ENV/
+.env
 
 # Banco de dados local
 *.sqlite3
