@@ -37,7 +37,7 @@ def home_view(request):
 
 @papel_requerido(Usuario.Papel.IS)
 def criar_usuario_view(request):
-    """IS cria um usuário novo (professor ou empreendimento)."""
+    """IS cria um usuário novo (professor ou empreendedor)."""
     form = UsuarioCadastroForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():

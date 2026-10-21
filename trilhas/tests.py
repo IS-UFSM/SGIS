@@ -21,7 +21,7 @@ class CriarTrilhaTests(TestCase):
         self.assertRedirects(resposta, f"{reverse('login')}?next={self.url}")
 
     def test_outros_papeis_recebem_403(self):
-        for papel in (Usuario.Papel.IS, Usuario.Papel.EMPREENDIMENTO, Usuario.Papel.ADMIN):
+        for papel in (Usuario.Papel.IS, Usuario.Papel.EMPREENDEDOR, Usuario.Papel.ADMIN):
             usuario = Usuario.objects.create_user(f'{papel}@ufsm.br', papel, 'x', papel=papel)
             self.client.force_login(usuario)
             self.assertEqual(self.client.get(self.url).status_code, 403)
@@ -75,7 +75,7 @@ class TodasTrilhasTests(TestCase):
         self.assertRedirects(resposta, f"{reverse('login')}?next={self.url}")
 
     def test_outros_papeis_recebem_403(self):
-        for papel in (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDIMENTO, Usuario.Papel.ADMIN):
+        for papel in (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDEDOR, Usuario.Papel.ADMIN):
             usuario = Usuario.objects.create_user(f'{papel}2@ufsm.br', papel, 'x', papel=papel)
             self.client.force_login(usuario)
             self.assertEqual(self.client.get(self.url).status_code, 403)
@@ -101,8 +101,8 @@ class TodasTrilhasTests(TestCase):
 class InscricaoTests(TestCase):
     def setUp(self):
         self.is_user = Usuario.objects.create_user('is@ufsm.br', 'IS', 'x', papel=Usuario.Papel.IS)
-        dono = Usuario.objects.create_user('e@ufsm.br', 'Emp', 'x', papel=Usuario.Papel.EMPREENDIMENTO)
-        self.emp = Empreendimento.objects.create(nome='Padaria', tipo='alimentos', usuario_empreendimento=dono)
+        dono = Usuario.objects.create_user('e@ufsm.br', 'Emp', 'x', papel=Usuario.Papel.EMPREENDEDOR)
+        self.emp = Empreendimento.objects.create(nome='Padaria', tipo='alimentos', representante=dono)
         self.trilha = Trilha.objects.create(titulo='Finanças', tipo=Trilha.Tipo.PADRAO, usuario_criador=self.is_user)
         self.url = reverse('trilhas:inscricoes')
 
@@ -117,7 +117,7 @@ class InscricaoTests(TestCase):
         return reverse('trilhas:alterar_inscricao', args=[inscricao.pk, acao])
 
     def test_apenas_is_acessa(self):
-        for papel in (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDIMENTO, Usuario.Papel.ADMIN):
+        for papel in (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDEDOR, Usuario.Papel.ADMIN):
             usuario = Usuario.objects.create_user(f'{papel}3@ufsm.br', papel, 'x', papel=papel)
             self.client.force_login(usuario)
             self.assertEqual(self.client.get(self.url).status_code, 403)
@@ -193,11 +193,11 @@ class InscricaoTests(TestCase):
 
 class InscricaoPreIncubacaoTests(TestCase):
     def setUp(self):
-        self.dono = Usuario.objects.create_user('e@ufsm.br', 'Emp', 'x', papel=Usuario.Papel.EMPREENDIMENTO)
+        self.dono = Usuario.objects.create_user('e@ufsm.br', 'Emp', 'x', papel=Usuario.Papel.EMPREENDEDOR)
         self.pre = Trilha.objects.get(pre_incubacao=True)  # criada pela migração
 
     def criar_empreendimento(self, nome='Padaria'):
-        return Empreendimento.objects.create(nome=nome, tipo='alimentos', usuario_empreendimento=self.dono)
+        return Empreendimento.objects.create(nome=nome, tipo='alimentos', representante=self.dono)
 
     def test_migracao_cria_trilha_pre_incubacao(self):
         self.assertEqual(self.pre.titulo, 'Pré-incubação')
@@ -235,10 +235,10 @@ class InscricaoPreIncubacaoTests(TestCase):
 class TrilhasInscritasTests(TestCase):
     def setUp(self):
         is_user = Usuario.objects.create_user('is@ufsm.br', 'IS', 'x', papel=Usuario.Papel.IS)
-        self.dono = Usuario.objects.create_user('e@ufsm.br', 'Emp', 'x', papel=Usuario.Papel.EMPREENDIMENTO)
-        outro_dono = Usuario.objects.create_user('o@ufsm.br', 'Outro', 'x', papel=Usuario.Papel.EMPREENDIMENTO)
-        self.emp = Empreendimento.objects.create(nome='Padaria', tipo='alimentos', usuario_empreendimento=self.dono)
-        outro_emp = Empreendimento.objects.create(nome='Horta', tipo='alimentos', usuario_empreendimento=outro_dono)
+        self.dono = Usuario.objects.create_user('e@ufsm.br', 'Emp', 'x', papel=Usuario.Papel.EMPREENDEDOR)
+        outro_dono = Usuario.objects.create_user('o@ufsm.br', 'Outro', 'x', papel=Usuario.Papel.EMPREENDEDOR)
+        self.emp = Empreendimento.objects.create(nome='Padaria', tipo='alimentos', representante=self.dono)
+        outro_emp = Empreendimento.objects.create(nome='Horta', tipo='alimentos', representante=outro_dono)
 
         def trilha(titulo):
             return Trilha.objects.create(titulo=titulo, tipo=Trilha.Tipo.CUSTOM, usuario_criador=is_user)
@@ -256,7 +256,14 @@ class TrilhasInscritasTests(TestCase):
         trilha('Sem inscrição')
         self.url = reverse('trilhas:inscritas')
 
-    def test_apenas_empreendimento_acessa(self):
+    def test_menu_do_empreendedor_aponta_para_trilhas_inscritas(self):
+        """Garante que os templates comparam com o papel certo ('empreendedor')."""
+        self.client.force_login(self.dono)
+        for pagina in (reverse('home'), self.url):
+            with self.subTest(pagina=pagina):
+                self.assertContains(self.client.get(pagina), f'href="{self.url}"')
+
+    def test_apenas_empreendedor_acessa(self):
         for papel in (Usuario.Papel.IS, Usuario.Papel.PROFESSOR, Usuario.Papel.ADMIN):
             usuario = Usuario.objects.create_user(f'{papel}4@ufsm.br', papel, 'x', papel=papel)
             self.client.force_login(usuario)

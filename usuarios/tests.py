@@ -31,7 +31,7 @@ class CriarUsuarioPermissaoTests(TestCase):
         self.assertRedirects(resposta, f"{reverse('login')}?next={URL}")
 
     def test_papel_diferente_de_is_recebe_403(self):
-        for papel in (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDIMENTO, Usuario.Papel.ADMIN):
+        for papel in (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDEDOR, Usuario.Papel.ADMIN):
             with self.subTest(papel=papel):
                 usuario = Usuario.objects.create_user(
                     f'{papel}@sgis.com', 'Teste', 'senha12345', papel=papel,
@@ -60,14 +60,14 @@ class CriarUsuarioTests(TestCase):
         self.client.logout()
         self.assertTrue(self.client.login(email='maria@escola.com', password='senha-super-segura'))
 
-    def test_is_cria_empreendimento(self):
+    def test_is_cria_empreendedor(self):
         resposta = self.client.post(URL, dados(
-            nome='Ateliê da Praça', email='contato@atelie.com', papel=Usuario.Papel.EMPREENDIMENTO,
+            nome='Ateliê da Praça', email='contato@atelie.com', papel=Usuario.Papel.EMPREENDEDOR,
         ))
 
         self.assertRedirects(resposta, URL)
         usuario = Usuario.objects.get(email='contato@atelie.com')
-        self.assertEqual(usuario.papel, Usuario.Papel.EMPREENDIMENTO)
+        self.assertEqual(usuario.papel, Usuario.Papel.EMPREENDEDOR)
 
     def test_is_nao_consegue_criar_is_ou_admin(self):
         """Mesmo enviando o papel direto no POST, a validação bloqueia."""

@@ -53,7 +53,7 @@ class Command(BaseCommand):
             {
                 'email': 'ana.costura@sgis.com',
                 'nome': 'Ana Souza (Costura Criativa)',
-                'papel': Usuario.Papel.EMPREENDIMENTO,
+                'papel': Usuario.Papel.EMPREENDEDOR,
                 'senha': 'emp123456',
                 'is_staff': False,
                 'is_superuser': False,
@@ -61,7 +61,7 @@ class Command(BaseCommand):
             {
                 'email': 'joao.horta@sgis.com',
                 'nome': 'João Pereira (Horta Comunitária)',
-                'papel': Usuario.Papel.EMPREENDIMENTO,
+                'papel': Usuario.Papel.EMPREENDEDOR,
                 'senha': 'emp123456',
                 'is_staff': False,
                 'is_superuser': False,
@@ -98,14 +98,14 @@ class Command(BaseCommand):
                 'nome': 'Atelie Costura Solidaria',
                 'tipo': 'Artesanato / Textil',
                 'descricao': 'Producao artesanal sustentavel e geracao de renda para costureiras locais.',
-                'usuario_empreendimento': usuarios['ana.costura@sgis.com'],
+                'representante': usuarios['ana.costura@sgis.com'],
                 'usuario_professor_supervisor': usuarios['professor.carlos@sgis.com'],
             },
             {
                 'nome': 'Horta Urbana Verde Vivo',
                 'tipo': 'Agroecologia / Alimentos',
                 'descricao': 'Cultivo comunitario de hortalicas organicas com venda direta ao consumidor.',
-                'usuario_empreendimento': usuarios['joao.horta@sgis.com'],
+                'representante': usuarios['joao.horta@sgis.com'],
                 'usuario_professor_supervisor': usuarios['professora.marina@sgis.com'],
             },
         ]
