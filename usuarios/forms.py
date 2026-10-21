@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
 
 from .models import Usuario
 
@@ -8,6 +9,11 @@ CLASSES_INPUT = (
     'rounded-lg focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 '
     'placeholder:text-slate-400 transition duration-150'
 )
+
+
+def normalizar_email(email):
+    """Emails são guardados e comparados sempre em minúsculas."""
+    return (email or '').strip().lower()
 
 
 class LoginForm(forms.Form):
@@ -19,11 +25,7 @@ class LoginForm(forms.Form):
             'placeholder': 'seu@email.com',
             'autofocus': True,
             'autocomplete': 'email',
-            'class': (
-                'w-full px-3.5 py-2.5 text-slate-800 bg-slate-50 border border-slate-300 '
-                'rounded-lg focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 '
-                'placeholder:text-slate-400 transition duration-150'
-            ),
+            'class': CLASSES_INPUT,
         }),
     )
     senha = forms.CharField(
@@ -31,11 +33,7 @@ class LoginForm(forms.Form):
         widget=forms.PasswordInput(attrs={
             'placeholder': 'Sua senha',
             'autocomplete': 'current-password',
-            'class': (
-                'w-full px-3.5 py-2.5 text-slate-800 bg-slate-50 border border-slate-300 '
-                'rounded-lg focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 '
-                'placeholder:text-slate-400 transition duration-150'
-            ),
+            'class': CLASSES_INPUT,
         }),
     )
 
@@ -46,7 +44,7 @@ class LoginForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
-        email = cleaned.get('email')
+        email = normalizar_email(cleaned.get('email'))
         senha = cleaned.get('senha')
 
         if email and senha:
@@ -73,8 +71,6 @@ class UsuarioCadastroForm(forms.ModelForm):
 
     senha = forms.CharField(
         label='Senha',
-        min_length=8,
-        help_text='Mínimo de 8 caracteres.',
         widget=forms.PasswordInput(attrs={
             'placeholder': 'Senha inicial do usuário',
             'autocomplete': 'new-password',
@@ -110,17 +106,25 @@ class UsuarioCadastroForm(forms.ModelForm):
             c for c in Usuario.Papel.choices if c[0] in papeis_is
         ]
 
-    def clean_nome(self):
-        nome = self.cleaned_data['nome'].strip()
-        if not nome:
-            raise forms.ValidationError('Informe um nome.')
-        return nome
+    def clean_email(self):
+        email = normalizar_email(self.cleaned_data['email'])
+        if Usuario.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError('Já existe um usuário com este email.')
+        return email
 
-    def clean_senha(self):
-        senha = self.cleaned_data['senha']
-        if senha.strip() == '':
-            raise forms.ValidationError('Informe uma senha.')
-        return senha
+    def clean(self):
+        cleaned = super().clean()
+        senha = cleaned.get('senha')
+        if senha:
+            usuario = Usuario(
+                nome=cleaned.get('nome', ''),
+                email=cleaned.get('email', ''),
+            )
+            try:
+                validate_password(senha, user=usuario)
+            except forms.ValidationError as erro:
+                self.add_error('senha', erro)
+        return cleaned
 
     def save(self, commit=True):
         """Cria o usuário com a senha já criptografada."""
