@@ -32,7 +32,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         ADMIN = 'admin', 'Administrador'
         IS = 'is', 'Incubadora Social'
         PROFESSOR = 'professor', 'Professor'
-        EMPREENDIMENTO = 'empreendimento', 'Empreendimento'
+        EMPREENDEDOR = 'empreendedor', 'Empreendedor'
 
     email = models.EmailField('email', unique=True)
     nome = models.CharField('nome', max_length=150)

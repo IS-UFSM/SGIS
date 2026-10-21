@@ -63,7 +63,7 @@ class LoginForm(forms.Form):
 
 
 class UsuarioCadastroForm(forms.ModelForm):
-    """IS cria um usuário professor ou de empreendimento.
+    """IS cria um usuário professor ou empreendedor.
 
     O papel é limitado aos dois perfis que a IS pode criar; mesmo
     manipulando o POST, admin e IS não passam pela validação.
@@ -101,7 +101,7 @@ class UsuarioCadastroForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        papeis_is = (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDIMENTO)
+        papeis_is = (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDEDOR)
         self.fields['papel'].choices = [
             c for c in Usuario.Papel.choices if c[0] in papeis_is
         ]

@@ -5,7 +5,7 @@ from .models import Empreendimento
 
 @admin.register(Empreendimento)
 class EmpreendimentoAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'tipo', 'usuario_empreendimento',
+    list_display = ('nome', 'tipo', 'representante',
                     'usuario_professor_supervisor', 'ativo')
     list_filter = ('tipo',)
     search_fields = ('nome',)

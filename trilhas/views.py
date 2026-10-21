@@ -113,13 +113,13 @@ def alterar_inscricao_view(request, pk, acao):
     return redirect('trilhas:inscricoes')
 
 
-@papel_requerido(Usuario.Papel.EMPREENDIMENTO)
+@papel_requerido(Usuario.Papel.EMPREENDEDOR)
 def trilhas_inscritas_view(request):
-    """Empreendimento vê as trilhas em que está inscrito (canceladas ficam ocultas)."""
+    """Empreendedor vê as trilhas em que seu empreendimento está inscrito (canceladas ficam ocultas)."""
     inscricoes = (
         Inscricao.objects
         .filter(
-            empreendimento__usuario_empreendimento=request.user,
+            empreendimento__representante=request.user,
             empreendimento__desativado_em__isnull=True,
         )
         .exclude(status=Inscricao.Status.CANCELADA)

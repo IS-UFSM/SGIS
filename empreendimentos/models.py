@@ -14,11 +14,12 @@ class Empreendimento(models.Model):
         blank=True,
         help_text='Nulo = ativo. Preenchido = data da desativação.',
     )
-    usuario_empreendimento = models.ForeignKey(
+    representante = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name='empreendimentos',
-        verbose_name='empreendedor',
+        verbose_name='representante',
+        help_text='Empreendedor responsável pelo empreendimento.',
     )
     usuario_professor_supervisor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
