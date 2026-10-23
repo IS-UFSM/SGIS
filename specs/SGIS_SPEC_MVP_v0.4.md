@@ -2,7 +2,7 @@
 
 **Versão:** 0.4 (revisão após reunião com a IS)
 
-**Substitui:** `SGIS_SPEC_MVP.md` (v0.3) e, para o MVP, o `MODELAGEM_BANCO.md`. A `SGIS_SPEC_COMPLETA.md` continua como registro da visão inicial, mas vários módulos dela foram descartados (ver seção 12).
+**Substitui:** `_arquivo/SGIS_SPEC_MVP.md` (v0.3) e, para o MVP, o `_arquivo/MODELAGEM_BANCO.md`. A `_arquivo/SGIS_SPEC_COMPLETA.md` continua como registro da visão inicial, mas vários módulos dela foram descartados (ver seção 12).
 
 **Convenções:** `ID` = requisito · `Prior.`: **M** obrigatório, **S** desejável, **C** só se sobrar tempo · `[Confirmar]` = decisão ainda pendente com a IS · `[ASSUMIDO]` = proposta da equipe, ainda não validada.
 
