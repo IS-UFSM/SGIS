@@ -26,7 +26,7 @@ class CriarTrilhaTests(TestCase):
             self.client.force_login(usuario)
             self.assertEqual(self.client.get(self.url).status_code, 403)
             self.assertEqual(self.client.post(self.url, {'titulo': 'X'}).status_code, 403)
-        self.assertFalse(Trilha.objects.filter(pre_incubacao=False).exists())
+        self.assertFalse(Trilha.objects.filter(etapa='').exists())
 
     def test_professor_cria_trilha_personalizada(self):
         self.client.force_login(self.professor)
@@ -34,27 +34,29 @@ class CriarTrilhaTests(TestCase):
             'titulo': '  Gestão financeira  ',
             'descricao': 'Noções básicas',
             # Campos forjados devem ser ignorados.
-            'tipo': Trilha.Tipo.PADRAO,
+            'etapa': Trilha.Etapa.INCUBACAO,
+            'status': Trilha.Status.PUBLICADA,
         })
         self.assertRedirects(resposta, reverse('trilhas:minhas'))
         trilha = Trilha.objects.get(usuario_criador=self.professor)
         self.assertEqual(trilha.titulo, 'Gestão financeira')
-        self.assertEqual(trilha.tipo, Trilha.Tipo.CUSTOM)
+        self.assertEqual(trilha.etapa, '')
+        self.assertEqual(trilha.status, Trilha.Status.RASCUNHO)
         self.assertEqual(trilha.usuario_criador, self.professor)
 
     def test_titulo_obrigatorio(self):
         self.client.force_login(self.professor)
         resposta = self.client.post(self.url, {'titulo': '   ', 'descricao': ''})
         self.assertEqual(resposta.status_code, 200)
-        self.assertFalse(Trilha.objects.filter(pre_incubacao=False).exists())
+        self.assertFalse(Trilha.objects.filter(etapa='').exists())
 
 
 class MinhasTrilhasTests(TestCase):
     def test_lista_apenas_trilhas_do_professor(self):
         prof = Usuario.objects.create_user('a@ufsm.br', 'A', 'x', papel=Usuario.Papel.PROFESSOR)
         outro = Usuario.objects.create_user('b@ufsm.br', 'B', 'x', papel=Usuario.Papel.PROFESSOR)
-        Trilha.objects.create(titulo='Minha', tipo=Trilha.Tipo.CUSTOM, usuario_criador=prof)
-        Trilha.objects.create(titulo='Alheia', tipo=Trilha.Tipo.CUSTOM, usuario_criador=outro)
+        Trilha.objects.create(titulo='Minha', usuario_criador=prof)
+        Trilha.objects.create(titulo='Alheia', usuario_criador=outro)
 
         self.client.force_login(prof)
         resposta = self.client.get(reverse('trilhas:minhas'))
@@ -66,8 +68,8 @@ class TodasTrilhasTests(TestCase):
     def setUp(self):
         self.is_user = Usuario.objects.create_user('is@ufsm.br', 'IS', 'x', papel=Usuario.Papel.IS)
         prof = Usuario.objects.create_user('p@ufsm.br', 'Prof', 'x', papel=Usuario.Papel.PROFESSOR)
-        Trilha.objects.create(titulo='Trilha base', tipo=Trilha.Tipo.PADRAO, usuario_criador=self.is_user)
-        Trilha.objects.create(titulo='Trilha do prof', tipo=Trilha.Tipo.CUSTOM, usuario_criador=prof)
+        self.etapa = Trilha.objects.get(etapa=Trilha.Etapa.INCUBACAO)  # criada pela migração
+        self.do_prof = Trilha.objects.create(titulo='Trilha do prof', usuario_criador=prof)
         self.url = reverse('trilhas:todas')
 
     def test_exige_login(self):
@@ -83,14 +85,18 @@ class TodasTrilhasTests(TestCase):
     def test_is_ve_todas_as_trilhas(self):
         self.client.force_login(self.is_user)
         resposta = self.client.get(self.url)
-        self.assertContains(resposta, 'Trilha base')
-        self.assertContains(resposta, 'Trilha do prof')
+        self.assertIn(self.etapa, resposta.context['trilhas'])
+        self.assertIn(self.do_prof, resposta.context['trilhas'])
 
     def test_filtro_por_tipo(self):
         self.client.force_login(self.is_user)
-        resposta = self.client.get(self.url, {'tipo': Trilha.Tipo.CUSTOM})
-        self.assertContains(resposta, 'Trilha do prof')
-        self.assertNotContains(resposta, 'Trilha base')
+        resposta = self.client.get(self.url, {'tipo': 'personalizada'})
+        self.assertIn(self.do_prof, resposta.context['trilhas'])
+        self.assertNotIn(self.etapa, resposta.context['trilhas'])
+
+        resposta = self.client.get(self.url, {'tipo': 'etapa'})
+        self.assertIn(self.etapa, resposta.context['trilhas'])
+        self.assertNotIn(self.do_prof, resposta.context['trilhas'])
 
     def test_filtro_invalido_mostra_todas(self):
         self.client.force_login(self.is_user)
@@ -103,7 +109,7 @@ class InscricaoTests(TestCase):
         self.is_user = Usuario.objects.create_user('is@ufsm.br', 'IS', 'x', papel=Usuario.Papel.IS)
         dono = Usuario.objects.create_user('e@ufsm.br', 'Emp', 'x', papel=Usuario.Papel.EMPREENDEDOR)
         self.emp = Empreendimento.objects.create(nome='Padaria', tipo='alimentos', representante=dono)
-        self.trilha = Trilha.objects.create(titulo='Finanças', tipo=Trilha.Tipo.PADRAO, usuario_criador=self.is_user)
+        self.trilha = Trilha.objects.create(titulo='Finanças', usuario_criador=self.is_user)
         self.url = reverse('trilhas:inscricoes')
 
     def inscricoes(self):
@@ -194,14 +200,15 @@ class InscricaoTests(TestCase):
 class InscricaoPreIncubacaoTests(TestCase):
     def setUp(self):
         self.dono = Usuario.objects.create_user('e@ufsm.br', 'Emp', 'x', papel=Usuario.Papel.EMPREENDEDOR)
-        self.pre = Trilha.objects.get(pre_incubacao=True)  # criada pela migração
+        self.pre = Trilha.objects.get(etapa=Trilha.Etapa.PRE_INCUBACAO)  # criada pela migração
 
     def criar_empreendimento(self, nome='Padaria'):
         return Empreendimento.objects.create(nome=nome, tipo='alimentos', representante=self.dono)
 
     def test_migracao_cria_trilha_pre_incubacao(self):
         self.assertEqual(self.pre.titulo, 'Pré-incubação')
-        self.assertEqual(self.pre.tipo, Trilha.Tipo.PADRAO)
+        self.assertEqual(self.pre.status, Trilha.Status.PUBLICADA)
+        self.assertIsNone(self.pre.usuario_criador)
 
     def test_novo_empreendimento_inscrito_automaticamente(self):
         emp = self.criar_empreendimento()
@@ -218,7 +225,7 @@ class InscricaoPreIncubacaoTests(TestCase):
         self.assertEqual(Inscricao.objects.filter(empreendimento=emp).count(), 1)
 
     def test_sem_trilha_pre_incubacao_nao_inscreve(self):
-        Trilha.objects.filter(pre_incubacao=True).update(pre_incubacao=False)
+        Trilha.objects.filter(pk=self.pre.pk).update(etapa='', usuario_criador=self.dono)
         with self.assertLogs('trilhas.signals', level='WARNING'):
             emp = self.criar_empreendimento()
         self.assertFalse(Inscricao.objects.filter(empreendimento=emp).exists())
@@ -226,10 +233,7 @@ class InscricaoPreIncubacaoTests(TestCase):
     def test_apenas_uma_trilha_pre_incubacao(self):
         from django.db import IntegrityError, transaction
         with self.assertRaises(IntegrityError), transaction.atomic():
-            Trilha.objects.create(
-                titulo='Outra', tipo=Trilha.Tipo.PADRAO,
-                usuario_criador=self.pre.usuario_criador, pre_incubacao=True,
-            )
+            Trilha.objects.create(titulo='Outra', etapa=Trilha.Etapa.PRE_INCUBACAO)
 
 
 class TrilhasInscritasTests(TestCase):
@@ -241,7 +245,7 @@ class TrilhasInscritasTests(TestCase):
         outro_emp = Empreendimento.objects.create(nome='Horta', tipo='alimentos', representante=outro_dono)
 
         def trilha(titulo):
-            return Trilha.objects.create(titulo=titulo, tipo=Trilha.Tipo.CUSTOM, usuario_criador=is_user)
+            return Trilha.objects.create(titulo=titulo, usuario_criador=is_user)
 
         Inscricao.objects.create(empreendimento=self.emp, trilha=trilha('Ativa'), inscrito_por=is_user)
         Inscricao.objects.create(
