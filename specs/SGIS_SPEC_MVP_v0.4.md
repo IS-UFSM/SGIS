@@ -1,6 +1,6 @@
 # SGIS — Especificação do MVP
 
-**Versão:** 0.4 (revisão após reunião com a IS)
+**Versão:** 0.4.1 (revisão após reunião com a IS)
 
 **Substitui:** `_arquivo/SGIS_SPEC_MVP.md` (v0.3) e, para o MVP, o `_arquivo/MODELAGEM_BANCO.md`. A `_arquivo/SGIS_SPEC_COMPLETA.md` continua como registro da visão inicial, mas vários módulos dela foram descartados (ver seção 12).
 
@@ -24,7 +24,7 @@ Um sistema fechado em que a Incubadora Social (IS) organiza as etapas da incuba�
 | **Empreendedor** | A pessoa que faz login em nome do empreendimento. É o **representante** dele. |
 | **Etapa** | Fase da incubação: **Pré-incubação → Incubação → Desincubação**. [Confirmar o nome da última etapa] |
 | **Trilha de etapa** | Trilha criada pela IS, comum a todos os empreendimentos daquela etapa. Existe uma por etapa. |
-| **Trilha de professor** | Trilha criada por um professor, em que só alguns empreendimentos são inscritos. |
+| **Trilha personalizada** | Trilha criada por um professor ou pela IS, sem etapa, em que só alguns empreendimentos são inscritos. |
 | **Dono da trilha** | Quem a criou. É quem edita e quem valida as atividades. |
 | **Inscrição** | Decisão da IS de colocar um empreendimento numa trilha. |
 | **Execução** | O andamento de uma atividade para um empreendimento inscrito. |
@@ -40,7 +40,7 @@ Um sistema fechado em que a Incubadora Social (IS) organiza as etapas da incuba�
 |---|---|
 | **Empreendedor** | Vê o perfil do próprio empreendimento, as trilhas em que ele está inscrito, marca atividades como concluídas, vê devoluções, o prontuário e os níveis por eixo. |
 | **Professor** | Cria trilhas personalizadas, valida ou devolve atividades delas, vê os empreendimentos que atende, com as trilhas e o status em cada uma, e escreve no prontuário deles. |
-| **IS** | Cria contas de professores e empreendedores, mantém as trilhas de etapa, inscreve empreendimentos, avança etapas, valida as trilhas de etapa, define níveis por eixo, escreve no prontuário e vê as estatísticas. |
+| **IS** | Cria contas de professores e empreendedores, mantém as trilhas de etapa, cria trilhas personalizadas, inscreve empreendimentos, avança etapas, valida as trilhas de etapa e as suas personalizadas, define níveis por eixo, escreve no prontuário e vê as estatísticas. |
 | **Admin** | Gerencia contas de todos os papéis, inclusive IS e admin. Não acessa dados de negócio. |
 
 Cada usuário tem um único papel.
@@ -95,22 +95,22 @@ Cada usuário tem um único papel.
 
 | ID | Requisito | Prior. |
 |---|---|---|
-| TRL-01 | Há dois tipos de trilha: **de etapa** (criadas pela IS, uma por etapa) e **de professor**. | M |
-| TRL-02 | O professor cria trilhas personalizadas: título, descrição e atividades. | M |
+| TRL-01 | Há dois tipos de trilha: **de etapa** (da IS, exatamente uma por etapa, criadas pelo sistema) e **personalizada** (criada por um professor ou pela IS). | M |
+| TRL-02 | O professor e a IS criam trilhas personalizadas: título, descrição e atividades. Uma trilha personalizada da IS não é trilha de etapa. | M |
 | TRL-03 | A IS cria e mantém a trilha de cada etapa: título, descrição e atividades. | M |
 | TRL-04 | **Atividade:** título, descrição, tipo (**Leitura, Link, Tarefa**), endereço (obrigatório para Link), obrigatória (sim/não), exige validação (padrão **sim**), prazo fixo **ou** em dias após a inscrição, e ordem. | M |
 | TRL-05 | **Estados da trilha:** rascunho → publicada → arquivada. Publicar exige pelo menos uma atividade ativa. Rascunho não aparece para empreendimentos. | M |
 | TRL-06 | Editar trilha publicada: ajustar textos e acrescentar atividades ao final. Atividade com progresso só pode ser arquivada. Trilha com progresso nunca é apagada. | M |
-| TRL-07 | Só o dono edita a trilha. | M |
+| TRL-07 | O dono edita a trilha. A IS também tem plenos poderes de edição sobre as trilhas personalizadas de professores (editar, publicar, arquivar), com uma confirmação antes de cada alteração. O dono continua sendo o professor. | M |
 | TRL-08 | Reordenar atividades. | S |
 | TRL-09 | Duplicar trilha. | C |
-| TRL-10 | **Quem vê trilhas:** a IS vê todas; o professor vê as suas, as trilhas de etapa e, em leitura, as trilhas de outros professores em que os empreendimentos que ele atende estão inscritos; o empreendedor vê só as trilhas em que está inscrito. | M |
+| TRL-10 | **Quem vê trilhas:** a IS vê todas; o professor vê as suas, as trilhas de etapa e, em leitura, as outras trilhas personalizadas em que os empreendimentos que ele atende estão inscritos; o empreendedor vê só as trilhas em que está inscrito. | M |
 
 ### F4 · Inscrição e etapas
 
 | ID | Requisito | Prior. |
 |---|---|---|
-| INS-01 | A IS inscreve um empreendimento numa trilha de professor **publicada**. | M |
+| INS-01 | A IS inscreve um empreendimento numa trilha personalizada **publicada**. | M |
 | INS-02 | Todo empreendimento novo é inscrito automaticamente na trilha de **pré-incubação**. Se ela não estiver publicada, o cadastro avisa a IS e a inscrição é feita quando ela for publicada. [ASSUMIDO] | M |
 | INS-03 | **Avançar etapa:** tela própria em que a IS move o empreendimento para a etapa seguinte. A inscrição na trilha da etapa atual vira **Concluída** e é criada a inscrição na trilha da próxima etapa. | M |
 | INS-04 | O empreendimento está em **uma única etapa por vez**: no máximo uma inscrição ativa ou pausada em trilha de etapa. | M |
@@ -195,12 +195,13 @@ Cada usuário tem um único papel.
 | Empreendimentos | criar, editar, desativar | — | — | ✔ | — |
 | Trilhas de etapa | criar, editar, publicar, arquivar | — | — | ✔ | — |
 | Trilhas de etapa | ver | as inscritas (atual e anteriores) | ✔ | ✔ | — |
-| Trilhas de professor | criar, editar, publicar, arquivar | — | as suas | — | — |
-| Trilhas de professor | ver | as inscritas | as suas + as de outros nos empreendimentos que atende | todas | — |
+| Trilhas personalizadas | criar, editar, publicar, arquivar | — | as suas | as suas | — |
+| Trilhas personalizadas de professores | editar, publicar, arquivar | — | — | ✔ (com confirmação) | — |
+| Trilhas personalizadas | ver | as inscritas | as suas + as outras nos empreendimentos que atende | todas | — |
 | Inscrição | criar, pausar, reativar, cancelar, avançar etapa | — | — | ✔ | — |
 | Inscrição | ver | as próprias | dos empreendimentos que atende | todas | — |
 | Atividade | marcar, desfazer | ✔ (as próprias) | — | — | — |
-| Atividade | validar, devolver, reabrir | — | nas suas trilhas | nas trilhas de etapa | — |
+| Atividade | validar, devolver, reabrir | — | nas suas trilhas | nas trilhas de etapa e nas suas personalizadas | — |
 | Prontuário | escrever | — | dos que atende | ✔ | — |
 | Prontuário | ler | o próprio | dos que atende | todos | — |
 | Nível por eixo | definir | — | — | ✔ | — |
@@ -218,7 +219,7 @@ Qualquer acesso fora desta tabela, por lista, busca ou endereço direto, é nega
 | RN-01 | Um usuário tem um único papel. O empreendedor é representante de exatamente um empreendimento; os demais papéis não têm vínculo com empreendimento. |
 | RN-02 | Um empreendimento tem um único representante. |
 | RN-03 | O professor se relaciona com um empreendimento **apenas por meio das trilhas dele**: atende quem está ou esteve inscrito nelas. Não há supervisão nem orientador fixo. |
-| RN-04 | Quem valida é sempre o **dono da trilha**: a IS nas trilhas de etapa, o professor nas dele. |
+| RN-04 | Quem valida é sempre o **dono da trilha**: a IS nas trilhas de etapa e nas personalizadas que criou, o professor nas dele. |
 | RN-05 | A atividade só é marcada pelo empreendedor. Nenhum outro papel marca por ele. |
 | RN-06 | Atividade que exige validação só conta como concluída depois de validada. |
 | RN-07 | Atividade atrasada = não concluída com prazo vencido (calculado, nunca gravado). |
@@ -242,7 +243,7 @@ Substitui o `MODELAGEM_BANCO.md` para o escopo do MVP. Campos de auditoria (`cri
 |---|---|---|
 | **Usuário** | nome, e-mail (único, minúsculas), senha (hash), papel, ativo, deve_trocar_senha, último acesso, criado_em | Papéis: `admin`, `is`, `professor`, `empreendedor` |
 | **Empreendimento** | nome, tipo, descrição, e-mail e telefone de contato, representante → Usuário, desativado_em | Nulo em `desativado_em` = ativo |
-| **Trilha** | título, descrição, etapa (vazio, `pre_incubacao`, `incubacao`, `desincubacao`), dono → Usuário, status, publicada_em, arquivada_em | Etapa vazia = trilha de professor. No máximo uma trilha não arquivada por etapa |
+| **Trilha** | título, descrição, etapa (vazio, `pre_incubacao`, `incubacao`, `desincubacao`), dono → Usuário, status, publicada_em, arquivada_em | Etapa vazia = trilha personalizada. No máximo uma trilha não arquivada por etapa |
 | **Atividade da trilha** | trilha, título, descrição, tipo, endereço, ordem, obrigatória, exige_validacao, prazo_fixo, dias_apos_inscricao, criada_em, arquivada_em | Um dos dois prazos, ou nenhum |
 | **Inscrição** | empreendimento, trilha, status, inscrito_por (vazio = automática), inscrito_em, pausado_em, cancelado_em, concluido_em, motivo | Única por par entre as ativas e pausadas |
 | **Execução da atividade** | inscrição, atividade, status, prazo, concluida_em, atualizada_em | Única por par inscrição–atividade |
@@ -277,8 +278,8 @@ Cada jornada é um teste de ponta a ponta.
 **J-3 · Etapas**
 > *Dado* um empreendimento na pré-incubação, *quando* a IS avança a etapa, *então* a inscrição na pré-incubação fica *Concluída*, ele é inscrito na trilha de incubação, e não fica em duas etapas ao mesmo tempo.
 
-**J-4 · Trilha de professor e inscrição**
-> *Dado* uma trilha de professor publicada, *quando* a IS inscreve o empreendimento A, *então* ela aparece para A com todas as atividades pendentes e **não** aparece para B. *Dado* uma trilha em rascunho, *então* nenhum empreendimento a vê e a IS não consegue inscrever ninguém nela.
+**J-4 · Trilha personalizada e inscrição**
+> *Dado* uma trilha personalizada publicada, *quando* a IS inscreve o empreendimento A, *então* ela aparece para A com todas as atividades pendentes e **não** aparece para B. *Dado* uma trilha em rascunho, *então* nenhum empreendimento a vê e a IS não consegue inscrever ninguém nela.
 
 **J-5 · Execução e validação**
 > *Dado* uma atividade que exige validação, *quando* o empreendedor a marca, *então* ela fica *Aguardando validação* e o progresso não muda. *Quando* o dono a devolve sem comentário, *então* o sistema recusa; com comentário, o empreendedor o vê. *Quando* o dono a valida, *então* ela vira *Concluída*, o progresso é recalculado e o histórico mostra as três ações. *Dado* um professor que não é dono da trilha, *quando* tenta validar uma atividade dela, *então* o acesso é negado.
@@ -384,3 +385,4 @@ Cada jornada é um teste de ponta a ponta.
 | 0.2 | 2026-10-07 | MVP-0: 3 papéis, atividades, acompanhamentos, estatísticas; "nada sem login"; 8 semanas. |
 | 0.3 | 2026-10-10 | Decisões da reunião: 4 papéis, trilha base e personalizadas, inscrição pela IS, validação pelo professor. |
 | 0.4 | 2026-10-23 | Revisão da equipe após a reunião com a IS (ver seção 14). |
+| 0.4.1 | 2026-10-23 | A IS também cria trilhas personalizadas e pode editar as dos professores; "trilha de professor" passa a se chamar "trilha personalizada" (decisões da `F3-trilhas/spec.md`). |
