@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -19,12 +20,11 @@ def minhas_trilhas_view(request):
 
 @papel_requerido(Usuario.Papel.PROFESSOR)
 def criar_trilha_view(request):
-    """Professor cria uma trilha personalizada. Tipo e criador vêm do servidor."""
+    """Professor cria uma trilha personalizada. Etapa, status e dono vêm do servidor."""
     form = TrilhaForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
         trilha = form.save(commit=False)
-        trilha.tipo = Trilha.Tipo.CUSTOM
         trilha.usuario_criador = request.user
         trilha.save()
         messages.success(request, f'Trilha "{trilha.titulo}" criada com sucesso.')
@@ -33,20 +33,27 @@ def criar_trilha_view(request):
     return render(request, 'trilhas/criar_trilha.html', {'form': form})
 
 
+# Filtro por tipo na lista de todas as trilhas: valor do parâmetro -> (rótulo, filtro).
+FILTROS_TIPO = {
+    'etapa': ('De etapa', ~Q(etapa='')),
+    'personalizada': ('Personalizadas', Q(etapa='')),
+}
+
+
 @papel_requerido(Usuario.Papel.IS)
 def todas_trilhas_view(request):
     """IS vê todas as trilhas do sistema, com filtro opcional por tipo."""
     trilhas = Trilha.objects.select_related('usuario_criador').order_by('-id')
 
     tipo = request.GET.get('tipo', '')
-    if tipo in Trilha.Tipo.values:
-        trilhas = trilhas.filter(tipo=tipo)
+    if tipo in FILTROS_TIPO:
+        trilhas = trilhas.filter(FILTROS_TIPO[tipo][1])
     else:
         tipo = ''
 
     return render(request, 'trilhas/todas_trilhas.html', {
         'trilhas': trilhas,
-        'tipos': Trilha.Tipo.choices,
+        'tipos': [(valor, rotulo) for valor, (rotulo, _) in FILTROS_TIPO.items()],
         'tipo_atual': tipo,
     })
 

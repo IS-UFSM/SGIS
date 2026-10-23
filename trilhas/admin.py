@@ -5,8 +5,8 @@ from .models import Inscricao, Trilha
 
 @admin.register(Trilha)
 class TrilhaAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'tipo', 'usuario_criador', 'pre_incubacao')
-    list_filter = ('tipo', 'pre_incubacao')
+    list_display = ('titulo', 'etapa', 'status', 'usuario_criador')
+    list_filter = ('etapa', 'status')
     search_fields = ('titulo',)
 
 
