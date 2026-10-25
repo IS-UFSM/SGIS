@@ -99,7 +99,8 @@ def exige_confirmacao(usuario, trilha):
     )
 
 
-def _exigir_edicao(usuario, trilha):
+def exigir_edicao(usuario, trilha):
+    """TRL-07 e A-14: quem não pode editar recebe 403; trilha arquivada não muda."""
     if not pode_editar(usuario, trilha):
         raise PermissionDenied
     if trilha.status == Trilha.Status.ARQUIVADA:
@@ -110,7 +111,7 @@ def _exigir_edicao(usuario, trilha):
 
 def publicar(trilha, usuario):
     """TRL-05: rascunho → publicada, com pelo menos uma atividade ativa (A-09, A-10)."""
-    _exigir_edicao(usuario, trilha)
+    exigir_edicao(usuario, trilha)
     if trilha.status != Trilha.Status.RASCUNHO:
         raise RegraViolada('Só uma trilha em rascunho pode ser publicada.')
     if not trilha.atividades.filter(arquivada_em__isnull=True).exists():
@@ -122,7 +123,7 @@ def publicar(trilha, usuario):
 
 def arquivar(trilha, usuario):
     """TRL-05: publicada → arquivada; só personalizada e sem inscrição ativa ou pausada (A-03, A-15)."""
-    _exigir_edicao(usuario, trilha)
+    exigir_edicao(usuario, trilha)
     if trilha.e_de_etapa:
         raise RegraViolada('Trilhas de etapa não podem ser arquivadas.')
     if trilha.status != Trilha.Status.PUBLICADA:
@@ -153,7 +154,7 @@ def campos_editaveis(trilha):
 @transaction.atomic
 def acrescentar_atividade(trilha, usuario, dados):
     """TRL-04, TRL-06: atividade nova entra no fim, em rascunho ou publicada (A-08, A-12)."""
-    _exigir_edicao(usuario, trilha)
+    exigir_edicao(usuario, trilha)
     ultima = trilha.atividades.aggregate(maior=Max('ordem'))['maior'] or 0
     campos = {campo: valor for campo, valor in dados.items() if campo in CAMPOS_ATIVIDADE}
     return AtividadeTrilha.objects.create(trilha=trilha, ordem=ultima + 1, **campos)
@@ -161,7 +162,7 @@ def acrescentar_atividade(trilha, usuario, dados):
 
 def apagar_atividade(atividade, usuario):
     """RN-10: só se apaga atividade de trilha em rascunho; depois disso, só arquivar (A-13)."""
-    _exigir_edicao(usuario, atividade.trilha)
+    exigir_edicao(usuario, atividade.trilha)
     if atividade.trilha.status != Trilha.Status.RASCUNHO:
         raise RegraViolada('Atividade de trilha publicada não pode ser apagada; arquive-a.')
     atividade.delete()
@@ -169,7 +170,7 @@ def apagar_atividade(atividade, usuario):
 
 def arquivar_atividade(atividade, usuario):
     """RN-10: atividade arquivada sai da trilha, mas continua no histórico de quem a fez."""
-    _exigir_edicao(usuario, atividade.trilha)
+    exigir_edicao(usuario, atividade.trilha)
     if atividade.arquivada_em is not None:
         raise RegraViolada('Esta atividade já está arquivada.')
     atividade.arquivada_em = timezone.now()
@@ -180,7 +181,7 @@ def arquivar_atividade(atividade, usuario):
 def mover_atividade(atividade, usuario, direcao):
     """TRL-08: troca a atividade de lugar com a vizinha, só em rascunho (A-23)."""
     trilha = atividade.trilha
-    _exigir_edicao(usuario, trilha)
+    exigir_edicao(usuario, trilha)
     if trilha.status != Trilha.Status.RASCUNHO:
         raise RegraViolada('A ordem só pode ser mudada enquanto a trilha está em rascunho.')
 

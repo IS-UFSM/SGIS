@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
+from django.urls import reverse
 
 from empreendimentos.models import Empreendimento
 from usuarios.models import Usuario
@@ -338,3 +339,148 @@ class QuemVeTests(RegrasBaseTests):
     def test_admin_nao_ve_trilhas(self):
         """RN-16: o admin não acessa dados de negócio."""
         self.assertFalse(regras.trilhas_visiveis(self.admin).exists())
+
+
+class TelasDaTrilhaTests(RegrasBaseTests):
+    """T3: criar, ver, editar, publicar e arquivar pela interface."""
+
+    def url(self, nome, trilha, *args):
+        return reverse(f'trilhas:{nome}', args=[trilha.pk, *args])
+
+    def test_a01_trilha_criada_e_personalizada_do_criador_em_rascunho(self):
+        """A-01 (TRL-01, TRL-02): professor ou IS cria; quem criou é o dono; nasce em rascunho."""
+        for usuario in (self.prof_x, self.is_user):
+            with self.subTest(usuario=usuario.papel):
+                self.client.force_login(usuario)
+                titulo = f'Nova de {usuario.papel}'
+                resposta = self.client.post(reverse('trilhas:criar'), {'titulo': titulo})
+                trilha = Trilha.objects.get(titulo=titulo)
+                self.assertRedirects(resposta, self.url('detalhe', trilha))
+                self.assertEqual(trilha.usuario_criador, usuario)
+                self.assertEqual(trilha.etapa, '')
+                self.assertEqual(trilha.status, Trilha.Status.RASCUNHO)
+
+    def test_a03_is_cria_trilha_personalizada_nao_de_etapa(self):
+        """A-03 (TRL-02, RN-08): a trilha da IS é personalizada; continuam três de etapa."""
+        self.client.force_login(self.is_user)
+        self.client.post(reverse('trilhas:criar'), {'titulo': 'Formação extra'})
+        self.assertEqual(Trilha.objects.get(titulo='Formação extra').etapa, '')
+        self.assertEqual(Trilha.objects.exclude(etapa='').count(), 3)
+
+        resposta = self.client.post(self.url('acao', self.etapa, 'arquivar'))
+        self.assertRedirects(resposta, self.url('detalhe', self.etapa))
+        self.etapa.refresh_from_db()
+        self.assertEqual(self.etapa.status, Trilha.Status.PUBLICADA)
+
+    def test_a04_etapa_dono_e_status_forjados_sao_ignorados(self):
+        """A-04 (TRL-01, Constituição Art. 3.4)."""
+        self.client.force_login(self.prof_x)
+        self.client.post(reverse('trilhas:criar'), {
+            'titulo': 'Forjada',
+            'etapa': Trilha.Etapa.INCUBACAO,
+            'status': Trilha.Status.PUBLICADA,
+            'usuario_criador': self.is_user.pk,
+        })
+        trilha = Trilha.objects.get(titulo='Forjada')
+        self.assertEqual(trilha.etapa, '')
+        self.assertEqual(trilha.status, Trilha.Status.RASCUNHO)
+        self.assertEqual(trilha.usuario_criador, self.prof_x)
+
+    def test_dono_edita_titulo_e_descricao(self):
+        """TRL-06: o dono altera os textos da trilha."""
+        self.client.force_login(self.prof_x)
+        resposta = self.client.post(
+            self.url('editar', self.trilha_x), {'titulo': 'Novo título', 'descricao': 'Nova'},
+        )
+        self.assertRedirects(resposta, self.url('detalhe', self.trilha_x))
+        self.trilha_x.refresh_from_db()
+        self.assertEqual(self.trilha_x.titulo, 'Novo título')
+
+    def test_a09_publicar_pela_tela_exige_atividade(self):
+        """A-09 (TRL-05)."""
+        self.client.force_login(self.prof_x)
+        self.client.post(self.url('acao', self.trilha_x, 'publicar'))
+        self.trilha_x.refresh_from_db()
+        self.assertEqual(self.trilha_x.status, Trilha.Status.RASCUNHO)
+
+        self.atividade(self.trilha_x)
+        self.client.post(self.url('acao', self.trilha_x, 'publicar'))
+        self.trilha_x.refresh_from_db()
+        self.assertEqual(self.trilha_x.status, Trilha.Status.PUBLICADA)
+
+    def test_a10_publicada_continua_publicada(self):
+        """A-10 (TRL-05)."""
+        trilha = self.publicada(self.trilha_x)
+        self.client.force_login(self.prof_x)
+        self.client.post(self.url('acao', trilha, 'publicar'))
+        trilha.refresh_from_db()
+        self.assertEqual(trilha.status, Trilha.Status.PUBLICADA)
+
+    def test_a14_trilha_arquivada_nao_e_editavel_pela_tela(self):
+        """A-14 (TRL-05)."""
+        trilha = self.publicada(self.trilha_x)
+        regras.arquivar(trilha, self.prof_x)
+        self.client.force_login(self.prof_x)
+
+        self.assertRedirects(self.client.get(self.url('editar', trilha)), self.url('detalhe', trilha))
+        self.client.post(self.url('editar', trilha), {'titulo': 'Mudou'})
+        trilha.refresh_from_db()
+        self.assertEqual(trilha.titulo, 'Do X')
+
+    def test_a15_nao_arquiva_pela_tela_com_inscricao_ativa(self):
+        """A-15 (TRL-05)."""
+        trilha = self.publicada(self.trilha_x)
+        self.inscrever(trilha)
+        self.client.force_login(self.prof_x)
+        self.client.post(self.url('acao', trilha, 'arquivar'))
+        trilha.refresh_from_db()
+        self.assertEqual(trilha.status, Trilha.Status.PUBLICADA)
+
+    def test_a16_professor_nao_altera_trilha_de_outro_pela_tela(self):
+        """A-16 (TRL-07): editar, publicar e arquivar dão 403 e nada muda."""
+        self.atividade(self.trilha_x)
+        self.client.force_login(self.prof_y)
+        self.assertEqual(self.client.get(self.url('editar', self.trilha_x)).status_code, 403)
+        resposta = self.client.post(self.url('editar', self.trilha_x), {'titulo': 'Invadida'})
+        self.assertEqual(resposta.status_code, 403)
+        for acao in ('publicar', 'arquivar'):
+            with self.subTest(acao=acao):
+                resposta = self.client.post(self.url('acao', self.trilha_x, acao))
+                self.assertEqual(resposta.status_code, 403)
+        self.trilha_x.refresh_from_db()
+        self.assertEqual(self.trilha_x.titulo, 'Do X')
+        self.assertEqual(self.trilha_x.status, Trilha.Status.RASCUNHO)
+
+    def test_a17_professor_nao_edita_trilha_de_etapa_nem_da_is_pela_tela(self):
+        """A-17 (TRL-07)."""
+        da_is = Trilha.objects.create(titulo='Da IS', usuario_criador=self.is_user)
+        self.client.force_login(self.prof_x)
+        for trilha in (self.etapa, da_is):
+            with self.subTest(trilha=trilha.titulo):
+                self.assertEqual(self.client.get(self.url('editar', trilha)).status_code, 403)
+                resposta = self.client.post(self.url('acao', trilha, 'publicar'))
+                self.assertEqual(resposta.status_code, 403)
+
+    def test_a19_empreendedor_e_admin_nao_abrem_edicao(self):
+        """A-19 (TRL-07): nem criar, nem editar, nem publicar."""
+        for usuario in (self.empreendedor, self.admin):
+            self.client.force_login(usuario)
+            with self.subTest(usuario=usuario.papel):
+                self.assertEqual(self.client.get(reverse('trilhas:criar')).status_code, 403)
+                for trilha in (self.etapa, self.trilha_x):
+                    self.assertEqual(self.client.get(self.url('editar', trilha)).status_code, 403)
+                    resposta = self.client.post(self.url('acao', trilha, 'publicar'))
+                    self.assertEqual(resposta.status_code, 403)
+
+    def test_detalhe_so_para_quem_pode_ver(self):
+        """TRL-10: o detalhe responde 200 para quem vê a trilha e 403 para os demais."""
+        self.client.force_login(self.prof_x)
+        self.assertEqual(self.client.get(self.url('detalhe', self.trilha_x)).status_code, 200)
+        self.client.force_login(self.prof_y)
+        self.assertEqual(self.client.get(self.url('detalhe', self.trilha_x)).status_code, 403)
+
+    def test_acoes_exigem_post(self):
+        """Ações que mudam estado não aceitam GET."""
+        self.client.force_login(self.prof_x)
+        resposta = self.client.get(self.url('acao', self.trilha_x, 'publicar'))
+        self.assertEqual(resposta.status_code, 405)

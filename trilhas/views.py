@@ -1,4 +1,6 @@
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -7,8 +9,10 @@ from django.views.decorators.http import require_POST
 from usuarios.decorators import papel_requerido
 from usuarios.models import Usuario
 
+from . import regras
 from .forms import InscricaoForm, TrilhaForm
 from .models import Inscricao, Trilha
+from .regras import RegraViolada
 
 
 @papel_requerido(Usuario.Papel.PROFESSOR)
@@ -18,19 +22,85 @@ def minhas_trilhas_view(request):
     return render(request, 'trilhas/minhas_trilhas.html', {'trilhas': trilhas})
 
 
-@papel_requerido(Usuario.Papel.PROFESSOR)
+@papel_requerido(Usuario.Papel.PROFESSOR, Usuario.Papel.IS)
 def criar_trilha_view(request):
-    """Professor cria uma trilha personalizada. Etapa, status e dono vêm do servidor."""
+    """A-01, A-03, A-04: professor ou IS cria trilha personalizada; etapa, status e dono vêm do servidor."""
     form = TrilhaForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
         trilha = form.save(commit=False)
         trilha.usuario_criador = request.user
         trilha.save()
-        messages.success(request, f'Trilha "{trilha.titulo}" criada com sucesso.')
-        return redirect('trilhas:minhas')
+        messages.success(request, f'Trilha "{trilha.titulo}" criada em rascunho.')
+        return redirect('trilhas:detalhe', pk=trilha.pk)
 
     return render(request, 'trilhas/criar_trilha.html', {'form': form})
+
+
+@login_required
+def detalhe_trilha_view(request, pk):
+    """TRL-10: dados, estado e atividades da trilha, para quem pode vê-la (senão, 403)."""
+    trilha = get_object_or_404(Trilha.objects.select_related('usuario_criador'), pk=pk)
+    if not regras.pode_ver(request.user, trilha):
+        raise PermissionDenied
+
+    atividades = list(trilha.atividades.all())
+    pode_editar = (
+        regras.pode_editar(request.user, trilha)
+        and trilha.status != Trilha.Status.ARQUIVADA
+    )
+    return render(request, 'trilhas/detalhe.html', {
+        'trilha': trilha,
+        'ativas': [a for a in atividades if a.arquivada_em is None],
+        'arquivadas': [a for a in atividades if a.arquivada_em is not None],
+        'pode_editar': pode_editar,
+        'pode_publicar': pode_editar and trilha.status == Trilha.Status.RASCUNHO,
+        'pode_arquivar': (
+            pode_editar and not trilha.e_de_etapa
+            and trilha.status == Trilha.Status.PUBLICADA
+        ),
+    })
+
+
+@login_required
+def editar_trilha_view(request, pk):
+    """TRL-06, TRL-07: título e descrição, pelo dono ou pela IS (A-14, A-16, A-17, A-19)."""
+    trilha = get_object_or_404(Trilha, pk=pk)
+    try:
+        regras.exigir_edicao(request.user, trilha)
+    except RegraViolada as erro:
+        messages.error(request, str(erro))
+        return redirect('trilhas:detalhe', pk=trilha.pk)
+
+    form = TrilhaForm(request.POST or None, instance=trilha)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Trilha atualizada.')
+        return redirect('trilhas:detalhe', pk=trilha.pk)
+
+    return render(request, 'trilhas/criar_trilha.html', {'form': form, 'trilha': trilha})
+
+
+# Ações de estado da trilha: nome da rota -> (função de regras.py, mensagem de sucesso).
+ACOES_TRILHA = {
+    'publicar': (regras.publicar, 'Trilha publicada.'),
+    'arquivar': (regras.arquivar, 'Trilha arquivada.'),
+}
+
+
+@require_POST
+@login_required
+def acao_trilha_view(request, pk, acao):
+    """TRL-05: publicar (A-09, A-10) ou arquivar (A-03, A-15) a trilha."""
+    trilha = get_object_or_404(Trilha, pk=pk)
+    funcao, sucesso = ACOES_TRILHA[acao]
+    try:
+        funcao(trilha, request.user)
+    except RegraViolada as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, sucesso)
+    return redirect('trilhas:detalhe', pk=trilha.pk)
 
 
 # Filtro por tipo na lista de todas as trilhas: valor do parâmetro -> (rótulo, filtro).

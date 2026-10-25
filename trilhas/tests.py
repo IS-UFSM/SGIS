@@ -21,7 +21,8 @@ class CriarTrilhaTests(TestCase):
         self.assertRedirects(resposta, f"{reverse('login')}?next={self.url}")
 
     def test_outros_papeis_recebem_403(self):
-        for papel in (Usuario.Papel.IS, Usuario.Papel.EMPREENDEDOR, Usuario.Papel.ADMIN):
+        # A IS também cria trilhas (TRL-02); os demais papéis, não.
+        for papel in (Usuario.Papel.EMPREENDEDOR, Usuario.Papel.ADMIN):
             usuario = Usuario.objects.create_user(f'{papel}@ufsm.br', papel, 'x', papel=papel)
             self.client.force_login(usuario)
             self.assertEqual(self.client.get(self.url).status_code, 403)
@@ -37,8 +38,8 @@ class CriarTrilhaTests(TestCase):
             'etapa': Trilha.Etapa.INCUBACAO,
             'status': Trilha.Status.PUBLICADA,
         })
-        self.assertRedirects(resposta, reverse('trilhas:minhas'))
         trilha = Trilha.objects.get(usuario_criador=self.professor)
+        self.assertRedirects(resposta, reverse('trilhas:detalhe', args=[trilha.pk]))
         self.assertEqual(trilha.titulo, 'Gestão financeira')
         self.assertEqual(trilha.etapa, '')
         self.assertEqual(trilha.status, Trilha.Status.RASCUNHO)
