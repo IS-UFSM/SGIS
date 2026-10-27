@@ -10,8 +10,8 @@ from usuarios.decorators import papel_requerido
 from usuarios.models import Usuario
 
 from . import regras
-from .forms import InscricaoForm, TrilhaForm
-from .models import Inscricao, Trilha
+from .forms import AtividadeForm, AtividadeTextoForm, InscricaoForm, TrilhaForm
+from .models import AtividadeTrilha, Inscricao, Trilha
 from .regras import RegraViolada
 
 
@@ -96,6 +96,75 @@ def acao_trilha_view(request, pk, acao):
     funcao, sucesso = ACOES_TRILHA[acao]
     try:
         funcao(trilha, request.user)
+    except RegraViolada as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, sucesso)
+    return redirect('trilhas:detalhe', pk=trilha.pk)
+
+
+@login_required
+def criar_atividade_view(request, pk):
+    """TRL-04, TRL-06: nova atividade no fim da trilha, em rascunho ou publicada (A-05 a A-08, A-12)."""
+    trilha = get_object_or_404(Trilha, pk=pk)
+    try:
+        regras.exigir_edicao(request.user, trilha)
+    except RegraViolada as erro:
+        messages.error(request, str(erro))
+        return redirect('trilhas:detalhe', pk=trilha.pk)
+
+    form = AtividadeForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            regras.acrescentar_atividade(trilha, request.user, form.cleaned_data)
+        except RegraViolada as erro:
+            messages.error(request, str(erro))
+        else:
+            messages.success(request, 'Atividade acrescentada.')
+        return redirect('trilhas:detalhe', pk=trilha.pk)
+
+    return render(request, 'trilhas/atividade_form.html', {'form': form, 'trilha': trilha})
+
+
+@login_required
+def editar_atividade_view(request, pk):
+    """TRL-06: em rascunho, tudo; com a trilha publicada, só os textos (A-11)."""
+    atividade = get_object_or_404(AtividadeTrilha.objects.select_related('trilha'), pk=pk)
+    trilha = atividade.trilha
+    try:
+        regras.exigir_edicao(request.user, trilha)
+    except RegraViolada as erro:
+        messages.error(request, str(erro))
+        return redirect('trilhas:detalhe', pk=trilha.pk)
+
+    classe = AtividadeForm if trilha.status == Trilha.Status.RASCUNHO else AtividadeTextoForm
+    form = classe(request.POST or None, instance=atividade)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Atividade atualizada.')
+        return redirect('trilhas:detalhe', pk=trilha.pk)
+
+    return render(request, 'trilhas/atividade_form.html', {
+        'form': form, 'trilha': trilha, 'atividade': atividade,
+    })
+
+
+# Ações sobre uma atividade: nome -> (função de regras.py, mensagem de sucesso).
+ACOES_ATIVIDADE = {
+    'apagar': (regras.apagar_atividade, 'Atividade apagada.'),
+    'arquivar': (regras.arquivar_atividade, 'Atividade arquivada.'),
+}
+
+
+@require_POST
+@login_required
+def acao_atividade_view(request, pk, acao):
+    """RN-10: apagar só em rascunho; depois disso, arquivar (A-13)."""
+    atividade = get_object_or_404(AtividadeTrilha.objects.select_related('trilha'), pk=pk)
+    trilha = atividade.trilha
+    funcao, sucesso = ACOES_ATIVIDADE[acao]
+    try:
+        funcao(atividade, request.user)
     except RegraViolada as erro:
         messages.error(request, str(erro))
     else:
