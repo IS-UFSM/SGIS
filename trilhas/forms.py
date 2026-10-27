@@ -2,7 +2,7 @@ from django import forms
 
 from empreendimentos.models import Empreendimento
 
-from .models import Inscricao, Trilha
+from .models import AtividadeTrilha, Inscricao, Trilha
 
 CLASSES_INPUT = (
     'w-full px-3.5 py-2.5 text-slate-800 bg-slate-50 border border-slate-300 '
@@ -12,7 +12,7 @@ CLASSES_INPUT = (
 
 
 class TrilhaForm(forms.ModelForm):
-    """Formulário de criação de trilha personalizada pelo professor."""
+    """Título e descrição da trilha personalizada (criar e editar)."""
 
     class Meta:
         model = Trilha
@@ -39,6 +39,99 @@ class TrilhaForm(forms.ModelForm):
         if not titulo:
             raise forms.ValidationError('Informe um título.')
         return titulo
+
+
+SIM_NAO = (('sim', 'Sim'), ('nao', 'Não'))
+
+
+def _sim_nao(rotulo):
+    """Sim/Não que, quando não enviado, vale Sim (A-07: padrão obrigatória e exige validação)."""
+    return forms.TypedChoiceField(
+        label=rotulo,
+        choices=SIM_NAO,
+        coerce=lambda valor: valor == 'sim',
+        empty_value=True,
+        required=False,
+        initial='sim',
+        widget=forms.Select(attrs={'class': CLASSES_INPUT}),
+    )
+
+
+class AtividadeForm(forms.ModelForm):
+    """Atividade completa: criar, ou editar com a trilha em rascunho (TRL-04)."""
+
+    obrigatoria = _sim_nao('Obrigatória')
+    exige_validacao = _sim_nao('Exige validação')
+
+    class Meta:
+        model = AtividadeTrilha
+        fields = [
+            'titulo', 'descricao', 'tipo', 'endereco', 'obrigatoria',
+            'exige_validacao', 'prazo_fixo', 'dias_apos_inscricao',
+        ]
+        labels = {
+            'titulo': 'Título',
+            'descricao': 'Descrição',
+            'endereco': 'Endereço (para atividades do tipo Link)',
+            'prazo_fixo': 'Prazo fixo',
+            'dias_apos_inscricao': 'Ou: prazo em dias após a inscrição',
+        }
+        widgets = {
+            'titulo': forms.TextInput(attrs={'class': CLASSES_INPUT, 'autofocus': True}),
+            'descricao': forms.Textarea(attrs={'class': CLASSES_INPUT, 'rows': 4}),
+            'tipo': forms.Select(attrs={'class': CLASSES_INPUT}),
+            'endereco': forms.URLInput(attrs={'class': CLASSES_INPUT, 'placeholder': 'https://'}),
+            'prazo_fixo': forms.DateInput(attrs={'class': CLASSES_INPUT, 'type': 'date'}, format='%Y-%m-%d'),
+            'dias_apos_inscricao': forms.NumberInput(attrs={'class': CLASSES_INPUT, 'min': 1}),
+        }
+
+    def clean_titulo(self):
+        titulo = self.cleaned_data['titulo'].strip()
+        if not titulo:
+            raise forms.ValidationError('Informe um título.')
+        return titulo
+
+    def clean(self):
+        cleaned = super().clean()
+        # Erros presos a um campo: assim as restrições do banco não repetem a mensagem.
+        if cleaned.get('tipo') == AtividadeTrilha.Tipo.LINK and not cleaned.get('endereco'):
+            if 'endereco' not in self.errors:
+                self.add_error('endereco', 'Atividade do tipo Link precisa de um endereço.')  # A-05
+        if cleaned.get('prazo_fixo') and cleaned.get('dias_apos_inscricao') is not None:
+            self.add_error(
+                'dias_apos_inscricao',
+                'Escolha só um tipo de prazo: data fixa ou dias após a inscrição.',  # A-06
+            )
+        dias = cleaned.get('dias_apos_inscricao')
+        if dias is not None and dias < 1 and 'dias_apos_inscricao' not in self.errors:
+            self.add_error('dias_apos_inscricao', 'Informe pelo menos 1 dia.')
+        return cleaned
+
+
+class AtividadeTextoForm(forms.ModelForm):
+    """Só os textos da atividade, com a trilha publicada (A-11: o resto não muda)."""
+
+    class Meta:
+        model = AtividadeTrilha
+        fields = ['titulo', 'descricao', 'endereco']
+        labels = AtividadeForm.Meta.labels
+        widgets = {campo: AtividadeForm.Meta.widgets[campo] for campo in fields}
+
+    def clean_titulo(self):
+        titulo = self.cleaned_data['titulo'].strip()
+        if not titulo:
+            raise forms.ValidationError('Informe um título.')
+        return titulo
+
+    def clean(self):
+        cleaned = super().clean()
+        if (
+            self.instance.tipo == AtividadeTrilha.Tipo.LINK
+            and not cleaned.get('endereco')
+            and 'endereco' not in self.errors
+        ):
+            self.add_error('endereco', 'Atividade do tipo Link precisa de um endereço.')
+        return cleaned
 
 
 class InscricaoForm(forms.ModelForm):

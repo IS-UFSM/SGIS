@@ -484,3 +484,137 @@ class TelasDaTrilhaTests(RegrasBaseTests):
         self.client.force_login(self.prof_x)
         resposta = self.client.get(self.url('acao', self.trilha_x, 'publicar'))
         self.assertEqual(resposta.status_code, 405)
+
+
+class TelasDeAtividadeTests(RegrasBaseTests):
+    """T4: criar, editar, apagar e arquivar atividades pela interface."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.prof_x)
+
+    def criar(self, trilha=None, **dados):
+        trilha = trilha or self.trilha_x
+        dados = {'titulo': 'Atividade', 'tipo': AtividadeTrilha.Tipo.TAREFA, **dados}
+        return self.client.post(reverse('trilhas:atividade_criar', args=[trilha.pk]), dados)
+
+    def test_a05_link_sem_endereco_ou_invalido_e_recusado(self):
+        """A-05 (TRL-04)."""
+        for endereco in ('', 'nao-e-um-endereco'):
+            with self.subTest(endereco=endereco):
+                resposta = self.criar(tipo=AtividadeTrilha.Tipo.LINK, endereco=endereco)
+                self.assertEqual(resposta.status_code, 200)
+                self.assertTrue(resposta.context['form'].has_error('endereco'))
+        self.assertFalse(self.trilha_x.atividades.exists())
+
+        self.criar(tipo=AtividadeTrilha.Tipo.LINK, endereco='https://www.ufsm.br/')
+        self.assertEqual(self.trilha_x.atividades.get().endereco, 'https://www.ufsm.br/')
+
+    def test_a06_dois_prazos_sao_recusados(self):
+        """A-06 (TRL-04)."""
+        resposta = self.criar(prazo_fixo='2026-12-01', dias_apos_inscricao=10)
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(resposta.context['form'].has_error('dias_apos_inscricao'))
+        self.assertFalse(self.trilha_x.atividades.exists())
+
+    def test_dias_apos_inscricao_maior_que_zero(self):
+        """TRL-04 (spec 3.4.3)."""
+        resposta = self.criar(dias_apos_inscricao=0)
+        self.assertTrue(resposta.context['form'].has_error('dias_apos_inscricao'))
+
+    def test_a07_padrao_obrigatoria_e_exige_validacao(self):
+        """A-07 (TRL-04): sem informar, a atividade é obrigatória e exige validação."""
+        formulario = self.client.get(reverse('trilhas:atividade_criar', args=[self.trilha_x.pk]))
+        self.assertEqual(formulario.context['form']['obrigatoria'].value(), 'sim')
+        self.assertEqual(formulario.context['form']['exige_validacao'].value(), 'sim')
+
+        self.criar()
+        atividade = self.trilha_x.atividades.get()
+        self.assertTrue(atividade.obrigatoria)
+        self.assertTrue(atividade.exige_validacao)
+
+        self.criar(titulo='Opcional', obrigatoria='nao', exige_validacao='nao')
+        opcional = self.trilha_x.atividades.get(titulo='Opcional')
+        self.assertFalse(opcional.obrigatoria)
+        self.assertFalse(opcional.exige_validacao)
+
+    def test_a11_publicada_aceita_texto_e_ignora_tipo_prazo_e_validacao(self):
+        """A-11 (TRL-06): com a trilha publicada, só os textos da atividade mudam."""
+        trilha = self.publicada(self.trilha_x)
+        atividade = trilha.atividades.get()
+        resposta = self.client.post(reverse('trilhas:atividade_editar', args=[atividade.pk]), {
+            'titulo': 'Título novo',
+            'descricao': 'Nova descrição',
+            'tipo': AtividadeTrilha.Tipo.TAREFA,
+            'obrigatoria': 'nao',
+            'exige_validacao': 'nao',
+            'dias_apos_inscricao': 5,
+        })
+        self.assertRedirects(resposta, reverse('trilhas:detalhe', args=[trilha.pk]))
+        atividade.refresh_from_db()
+        self.assertEqual(atividade.titulo, 'Título novo')
+        self.assertEqual(atividade.tipo, AtividadeTrilha.Tipo.LEITURA)
+        self.assertTrue(atividade.obrigatoria)
+        self.assertTrue(atividade.exige_validacao)
+        self.assertIsNone(atividade.dias_apos_inscricao)
+
+    def test_rascunho_permite_mudar_tudo(self):
+        """TRL-06 (spec 3.5.2): em rascunho, todos os campos da atividade podem mudar."""
+        atividade = self.atividade(self.trilha_x)
+        self.client.post(reverse('trilhas:atividade_editar', args=[atividade.pk]), {
+            'titulo': 'Agora é tarefa',
+            'tipo': AtividadeTrilha.Tipo.TAREFA,
+            'obrigatoria': 'nao',
+            'dias_apos_inscricao': 5,
+        })
+        atividade.refresh_from_db()
+        self.assertEqual(atividade.tipo, AtividadeTrilha.Tipo.TAREFA)
+        self.assertFalse(atividade.obrigatoria)
+        self.assertEqual(atividade.dias_apos_inscricao, 5)
+
+    def test_a12_atividade_acrescentada_em_publicada_entra_no_fim(self):
+        """A-12 (TRL-06)."""
+        trilha = self.publicada(self.trilha_x)
+        self.criar(trilha, titulo='Depois da publicação')
+        self.assertEqual(trilha.atividades.last().titulo, 'Depois da publicação')
+
+    def test_a13_pela_tela_publicada_nao_apaga_so_arquiva(self):
+        """A-13 (RN-10)."""
+        rascunho = self.atividade(self.trilha_x, 'Some')
+        self.client.post(reverse('trilhas:atividade_apagar', args=[rascunho.pk]))
+        self.assertFalse(AtividadeTrilha.objects.filter(pk=rascunho.pk).exists())
+
+        trilha = self.publicada(self.trilha_x)
+        atividade = trilha.atividades.get()
+        self.client.post(reverse('trilhas:atividade_apagar', args=[atividade.pk]))
+        self.assertTrue(AtividadeTrilha.objects.filter(pk=atividade.pk).exists())
+
+        self.client.post(reverse('trilhas:atividade_arquivar', args=[atividade.pk]))
+        atividade.refresh_from_db()
+        self.assertIsNotNone(atividade.arquivada_em)
+
+    def test_outro_professor_nao_mexe_nas_atividades(self):
+        """A-16 (TRL-07): criar, editar, apagar e arquivar atividade alheia dão 403."""
+        atividade = self.atividade(self.trilha_x)
+        self.client.force_login(self.prof_y)
+        rotas = [
+            ('get', reverse('trilhas:atividade_criar', args=[self.trilha_x.pk])),
+            ('post', reverse('trilhas:atividade_criar', args=[self.trilha_x.pk])),
+            ('get', reverse('trilhas:atividade_editar', args=[atividade.pk])),
+            ('post', reverse('trilhas:atividade_apagar', args=[atividade.pk])),
+            ('post', reverse('trilhas:atividade_arquivar', args=[atividade.pk])),
+        ]
+        for metodo, url in rotas:
+            with self.subTest(url=url, metodo=metodo):
+                self.assertEqual(getattr(self.client, metodo)(url).status_code, 403)
+        self.assertTrue(AtividadeTrilha.objects.filter(pk=atividade.pk, arquivada_em__isnull=True).exists())
+
+    def test_trilha_montada_e_publicada_pela_interface(self):
+        """T4, 'pronto quando': trilha montada do zero, com os três tipos, e publicada."""
+        self.criar(titulo='Ler', tipo=AtividadeTrilha.Tipo.LEITURA)
+        self.criar(titulo='Acessar', tipo=AtividadeTrilha.Tipo.LINK, endereco='https://www.ufsm.br/')
+        self.criar(titulo='Fazer', tipo=AtividadeTrilha.Tipo.TAREFA, dias_apos_inscricao=7)
+        self.client.post(reverse('trilhas:acao', args=[self.trilha_x.pk, 'publicar']))
+        self.trilha_x.refresh_from_db()
+        self.assertEqual(self.trilha_x.status, Trilha.Status.PUBLICADA)
+        self.assertEqual([a.titulo for a in self.trilha_x.atividades.all()], ['Ler', 'Acessar', 'Fazer'])
