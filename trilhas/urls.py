@@ -20,6 +20,11 @@ urlpatterns = [
     path('atividades/<int:pk>/editar/', views.editar_atividade_view, name='atividade_editar'),
     path('atividades/<int:pk>/apagar/', views.acao_atividade_view, {'acao': 'apagar'}, name='atividade_apagar'),
     path('atividades/<int:pk>/arquivar/', views.acao_atividade_view, {'acao': 'arquivar'}, name='atividade_arquivar'),
+    re_path(
+        r'^atividades/(?P<pk>\d+)/mover/(?P<direcao>cima|baixo)/$',
+        views.mover_atividade_view,
+        name='atividade_mover',
+    ),
     path('inscricoes/', views.inscricoes_view, name='inscricoes'),
     re_path(
         r'^inscricoes/(?P<pk>\d+)/(?P<acao>pausar|reativar|cancelar)/$',
