@@ -40,6 +40,10 @@
         </div>
       {% endfor %}
 
+      {% if exige_confirmacao %}
+        {% include 'partials/confirmacao_is.html' %}
+      {% endif %}
+
       <div class="flex items-center justify-end gap-3 pt-2">
         <a href="{% url 'trilhas:detalhe' trilha.pk %}" class="py-2.5 px-4 text-sm font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition duration-150">
           Cancelar
