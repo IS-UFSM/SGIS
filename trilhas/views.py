@@ -17,9 +17,15 @@ from .regras import RegraViolada
 
 @papel_requerido(Usuario.Papel.PROFESSOR)
 def minhas_trilhas_view(request):
-    """Lista as trilhas personalizadas criadas pelo professor logado."""
-    trilhas = Trilha.objects.filter(usuario_criador=request.user).order_by('-id')
-    return render(request, 'trilhas/minhas_trilhas.html', {'trilhas': trilhas})
+    """TRL-10 (spec 3.6): as trilhas do professor, as de etapa e as de outros nos empreendimentos que atende."""
+    visiveis = regras.trilhas_visiveis(request.user).select_related('usuario_criador')
+    return render(request, 'trilhas/minhas_trilhas.html', {
+        'minhas': visiveis.filter(usuario_criador=request.user).order_by('-id'),
+        'de_etapa': visiveis.exclude(etapa='').order_by('id'),
+        'de_outros': (
+            visiveis.filter(etapa='').exclude(usuario_criador=request.user).order_by('titulo')
+        ),
+    })
 
 
 @papel_requerido(Usuario.Papel.PROFESSOR, Usuario.Papel.IS)
@@ -181,7 +187,7 @@ FILTROS_TIPO = {
 
 @papel_requerido(Usuario.Papel.IS)
 def todas_trilhas_view(request):
-    """IS vê todas as trilhas do sistema, com filtro opcional por tipo."""
+    """TRL-10: IS vê todas as trilhas, com filtros por tipo e por estado."""
     trilhas = Trilha.objects.select_related('usuario_criador').order_by('-id')
 
     tipo = request.GET.get('tipo', '')
@@ -190,10 +196,18 @@ def todas_trilhas_view(request):
     else:
         tipo = ''
 
+    estado = request.GET.get('estado', '')
+    if estado in Trilha.Status.values:
+        trilhas = trilhas.filter(status=estado)
+    else:
+        estado = ''
+
     return render(request, 'trilhas/todas_trilhas.html', {
         'trilhas': trilhas,
         'tipos': [(valor, rotulo) for valor, (rotulo, _) in FILTROS_TIPO.items()],
         'tipo_atual': tipo,
+        'estados': Trilha.Status.choices,
+        'estado_atual': estado,
     })
 
 
