@@ -795,3 +795,72 @@ class ConfirmacaoDaISTests(RegrasBaseTests):
         self.client.force_login(self.prof_x)
         resposta = self.post('editar', self.trilha_x, {'titulo': 'Pelo dono'})
         self.assertRedirects(resposta, reverse('trilhas:detalhe', args=[self.trilha_x.pk]))
+
+
+class TelaDeReordenarTests(RegrasBaseTests):
+    """T7: subir e descer atividades pela interface (TRL-08)."""
+
+    def setUp(self):
+        super().setUp()
+        self.primeira = self.atividade(self.trilha_x, 'Primeira')
+        self.segunda = self.atividade(self.trilha_x, 'Segunda')
+
+    def mover(self, atividade, direcao, **dados):
+        return self.client.post(
+            reverse('trilhas:atividade_mover', args=[atividade.pk, direcao]), dados,
+        )
+
+    def ordem(self):
+        return [atividade.titulo for atividade in self.trilha_x.atividades.all()]
+
+    def test_a23_reordenar_so_em_rascunho(self):
+        """A-23 (TRL-08): em rascunho a ordem muda e é a exibida no detalhe; publicada, não muda."""
+        self.client.force_login(self.prof_x)
+        resposta = self.mover(self.segunda, 'cima')
+        self.assertRedirects(resposta, reverse('trilhas:detalhe', args=[self.trilha_x.pk]))
+        self.assertEqual(self.ordem(), ['Segunda', 'Primeira'])
+
+        detalhe = self.client.get(reverse('trilhas:detalhe', args=[self.trilha_x.pk]))
+        self.assertEqual([a.titulo for a in detalhe.context['ativas']], ['Segunda', 'Primeira'])
+
+        regras.publicar(self.trilha_x, self.prof_x)
+        self.mover(self.segunda, 'baixo')
+        self.assertEqual(self.ordem(), ['Segunda', 'Primeira'])
+
+    def test_botoes_so_em_rascunho_e_sem_mover_alem_das_pontas(self):
+        """TRL-08: a primeira não sobe, a última não desce; publicada não mostra os botões."""
+        self.client.force_login(self.prof_x)
+        url_detalhe = reverse('trilhas:detalhe', args=[self.trilha_x.pk])
+        subir = lambda a: reverse('trilhas:atividade_mover', args=[a.pk, 'cima'])
+        descer = lambda a: reverse('trilhas:atividade_mover', args=[a.pk, 'baixo'])
+
+        detalhe = self.client.get(url_detalhe)
+        self.assertNotContains(detalhe, subir(self.primeira))
+        self.assertContains(detalhe, descer(self.primeira))
+        self.assertContains(detalhe, subir(self.segunda))
+        self.assertNotContains(detalhe, descer(self.segunda))
+
+        regras.publicar(self.trilha_x, self.prof_x)
+        self.assertNotContains(self.client.get(url_detalhe), descer(self.primeira))
+
+    def test_outro_professor_nao_reordena(self):
+        """A-16 (TRL-07): professor que não é dono recebe 403 e a ordem não muda."""
+        self.client.force_login(self.prof_y)
+        self.assertEqual(self.mover(self.segunda, 'cima').status_code, 403)
+        self.assertEqual(self.ordem(), ['Primeira', 'Segunda'])
+
+    def test_is_reordena_trilha_de_professor_so_com_confirmacao(self):
+        """A-18 (T6 aplicada à T7): sem confirmar, nada muda; confirmando, muda."""
+        self.client.force_login(self.is_user)
+        resposta = self.mover(self.segunda, 'cima')
+        self.assertTemplateUsed(resposta, 'trilhas/confirmar_acao.html')
+        self.assertEqual(self.ordem(), ['Primeira', 'Segunda'])
+
+        self.mover(self.segunda, 'cima', confirmar='1')
+        self.assertEqual(self.ordem(), ['Segunda', 'Primeira'])
+
+    def test_mover_exige_post(self):
+        """Ações que mudam estado não aceitam GET."""
+        self.client.force_login(self.prof_x)
+        url = reverse('trilhas:atividade_mover', args=[self.segunda.pk, 'cima'])
+        self.assertEqual(self.client.get(url).status_code, 405)

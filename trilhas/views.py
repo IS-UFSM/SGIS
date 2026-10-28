@@ -218,6 +218,22 @@ def acao_atividade_view(request, pk, acao):
     return redirect('trilhas:detalhe', pk=trilha.pk)
 
 
+@require_POST
+@login_required
+def mover_atividade_view(request, pk, direcao):
+    """TRL-08: sobe ou desce a atividade na trilha, só em rascunho (A-23)."""
+    atividade = get_object_or_404(AtividadeTrilha.objects.select_related('trilha'), pk=pk)
+    trilha = atividade.trilha
+    if _falta_confirmacao(request, trilha):
+        sentido = 'para cima' if direcao == 'cima' else 'para baixo'
+        return _pedir_confirmacao(request, trilha, f'mover a atividade "{atividade.titulo}" {sentido}')
+    try:
+        regras.mover_atividade(atividade, request.user, direcao)
+    except RegraViolada as erro:
+        messages.error(request, str(erro))
+    return redirect('trilhas:detalhe', pk=trilha.pk)
+
+
 # Filtro por tipo na lista de todas as trilhas: valor do parâmetro -> (rótulo, filtro).
 FILTROS_TIPO = {
     'etapa': ('De etapa', ~Q(etapa='')),
