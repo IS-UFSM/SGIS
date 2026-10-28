@@ -1,6 +1,6 @@
 # SGIS — Especificação do MVP
 
-**Versão:** 0.4.1 (revisão após reunião com a IS)
+**Versão:** 0.4.2 (revisão após reunião com a IS)
 
 **Substitui:** `_arquivo/SGIS_SPEC_MVP.md` (v0.3) e, para o MVP, o `_arquivo/MODELAGEM_BANCO.md`. A `_arquivo/SGIS_SPEC_COMPLETA.md` continua como registro da visão inicial, mas vários módulos dela foram descartados (ver seção 12).
 
@@ -89,7 +89,7 @@ Cada usuário tem um único papel.
 | EMP-03 | A IS lista os empreendimentos com filtros: ativos, desativados e por etapa atual. | M |
 | EMP-04 | **Perfil do empreendimento:** dados, etapa atual, níveis por eixo, trilhas em que está inscrito (com status) e prontuário. | M |
 | EMP-05 | Quem vê o perfil: a IS (todos), os professores que o atendem e o próprio representante. | M |
-| EMP-06 | A IS desativa um empreendimento sem apagar histórico. O representante perde o acesso. [Confirmar] | S |
+| EMP-06 | A IS desativa um empreendimento sem apagar histórico. O representante perde o acesso enquanto o empreendimento estiver desativado. | S |
 
 ### F3 · Trilhas
 
@@ -120,7 +120,7 @@ Cada usuário tem um único papel.
 | INS-08 | Com a inscrição pausada, o empreendedor vê a trilha, mas não marca atividades. Os prazos continuam correndo. | M |
 | INS-09 | O empreendedor vê só as inscrições do próprio empreendimento. | M |
 | INS-10 | Inscrição de vários empreendimentos de uma vez. | S |
-| INS-11 | O que acontece ao "avançar" a partir da Desincubação (encerrar a incubação?). | [Confirmar] |
+| INS-11 | Avançar a partir da Desincubação **encerra a incubação**: a inscrição fica Concluída e o empreendimento fica sem etapa ativa ("incubação concluída"). | M |
 
 ### F5 · Execução e validação
 
@@ -352,12 +352,12 @@ Cada jornada é um teste de ponta a ponta.
 | # | Pergunta | Proposta |
 |---|---|---|
 | 1 | Nome da última etapa | "Desincubação" (nome usado no protótipo da IS) |
-| 2 | O que acontece ao avançar a partir da Desincubação | Encerrar a incubação: a inscrição fica *Concluída* e o empreendimento fica sem etapa ativa |
+| 2 | O que acontece ao avançar a partir da Desincubação | **Decidido** (F4, 7.1): encerra a incubação; a inscrição fica *Concluída* e o empreendimento fica sem etapa ativa |
 | 3 | O MVP pode sair sem upload de evidências? | Sim; entregas são descritas na atividade e conferidas pelo dono |
 | 4 | Notas do prontuário podem ser editadas ou apagadas? | Não; só acrescentadas |
 | 5 | Nível inicial de um empreendimento novo | Vazio ("não avaliado") |
 | 6 | Prazo para a situação *Atenção* | Atividade devolvida há mais de 7 dias |
-| 7 | Desativar empreendimento tira o acesso do representante? | Sim |
+| 7 | Desativar empreendimento tira o acesso do representante? | **Decidido** (F2, 7.4): sim, enquanto estiver desativado; a conta do representante continua ativa |
 
 ---
 
@@ -386,3 +386,4 @@ Cada jornada é um teste de ponta a ponta.
 | 0.3 | 2026-10-10 | Decisões da reunião: 4 papéis, trilha base e personalizadas, inscrição pela IS, validação pelo professor. |
 | 0.4 | 2026-10-23 | Revisão da equipe após a reunião com a IS (ver seção 14). |
 | 0.4.1 | 2026-10-23 | A IS também cria trilhas personalizadas e pode editar as dos professores; "trilha de professor" passa a se chamar "trilha personalizada" (decisões da `F3-trilhas/spec.md`). |
+| 0.4.2 | 2026-10-28 | Decisões das specs F2 e F4: INS-11 (avançar a partir da Desincubação encerra a incubação) e EMP-06 (representante perde o acesso enquanto o empreendimento estiver desativado); pendências 2 e 7 da seção 13 fechadas. |
