@@ -3,6 +3,18 @@
 **Estado:** aprovado · **Data:** 2026-10-23
 **Spec:** [`spec.md`](spec.md) (aprovada) · **Plano:** [`plan.md`](plan.md) (aprovado)
 
+**Situação: concluída em 2026-10-28.**
+
+| Tarefa | Issue | Entrada na `main` |
+|---|---|---|
+| T1 · Models e migrações | #11 | PR #18 (`b9ab46e`) |
+| T2 · Módulo de regras | #12 | merge direto (`021478c`) |
+| T3 · Criar, editar, publicar e arquivar | #13 | commit direto (`0804cb6`) |
+| T4 · Atividades | (fechada manualmente) | merge direto (`a1f1a78`) |
+| T5 · Listas por papel | — | PR #19 (`b56b708`) |
+| T6 · Confirmação da IS | — | PR #20 (`6edb7d6`) |
+| T7 · Reordenar | — | PR #21 (`1dea3a8`) |
+
 Cada tarefa cabe num PR e vira uma issue no GitHub. O título da issue é o título da tarefa; o corpo é o bloco da tarefa. Toda tarefa termina com `python manage.py test` e `python manage.py makemigrations --check --dry-run` sem erros.
 
 **Tamanho:** P (algumas horas) · M (1 a 2 dias).

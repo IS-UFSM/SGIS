@@ -1,6 +1,8 @@
 # Levantamento: código atual × spec v0.4
 
-**Base:** `main` em `cbe3135` (2026-10-23) · 41 testes passando · Documento informativo, não precisa de aprovação.
+**Base:** `main` em `1dea3a8` (2026-10-28) · 110 testes passando · Documento informativo, não precisa de aprovação.
+
+**Histórico:** primeira versão em 2026-10-23 (`cbe3135`, 41 testes). Atualizado em 2026-10-28 depois da F3 (trilhas) e da troca de senha (ACE-07).
 
 Para cada requisito da [`SGIS_SPEC_MVP_v0.4.md`](SGIS_SPEC_MVP_v0.4.md), o que o código faz hoje. Serve de entrada para o `spec.md` e o `plan.md` de cada feature: o que está **diferente** vira tarefa de ajuste, o que está **faltando** vira tarefa nova.
 
@@ -13,10 +15,10 @@ Para cada requisito da [`SGIS_SPEC_MVP_v0.4.md`](SGIS_SPEC_MVP_v0.4.md), o que o
 | Feature | ✅ | 🟡 | 🔀 | ❌ | Observação |
 |---|---|---|---|---|---|
 | Seção 4 · Nada sem login | 0 | 0 | 1 | 2 | Hoje a proteção é view por view |
-| F1 · Acesso e contas | 1 | 5 | 1 | 7 | Só login, logout e criação de contas pela IS |
+| F1 · Acesso e contas | 2 | 5 | 1 | 6 | Login, logout, criação de contas pela IS e troca da própria senha |
 | F2 · Empreendimentos | 0 | 2 | 1 | 3 | Sem nenhuma tela; só pelo admin |
-| F3 · Trilhas | 0 | 2 | 1 | 7 | Trilha sem atividades nem estados |
-| F4 · Inscrição e etapas | 1 | 3 | 1 | 6 | Inscrição pela IS existe; etapas não |
+| F3 · Trilhas | 9 | 0 | 0 | 1 | **Concluída.** Só falta duplicar trilha (prioridade C) |
+| F4 · Inscrição e etapas | 1 | 3 | 1 | 6 | Inscrição pela IS existe; etapas não. A F3 criou os estados da trilha, mas a inscrição ainda não os respeita |
 | F5 · Execução e validação | 0 | 0 | 0 | 11 | Não existe |
 | F6 · Visão do professor | 0 | 0 | 0 | 3 | Não existe |
 | F7 · Prontuário | 0 | 0 | 0 | 4 | Não existe |
@@ -43,7 +45,7 @@ Para cada requisito da [`SGIS_SPEC_MVP_v0.4.md`](SGIS_SPEC_MVP_v0.4.md), o que o
 | ACE-04 | ✅ | `/usuarios/novo/`: a IS cria professor e empreendedor com senha inicial e não consegue criar IS nem admin. O admin cria qualquer papel pelo `/admin/`. |
 | ACE-05 | ❌ | Criar um empreendedor não cria o empreendimento. O empreendedor fica sem empreendimento e sem pré-incubação. |
 | ACE-06 | ❌ | Não há `deve_trocar_senha`. |
-| ACE-07 | ❌ | Não há troca de senha. *(Existe no repositório de entrega da disciplina, commit `26fd31f`, mas não nesta `main`.)* |
+| ACE-07 | ✅ | `/conta/senha/` ("Minha conta"): exige a senha atual, confirma a nova, aplica os validadores do Django e mantém a sessão (`update_session_auth_hash`). Veio do repositório de entrega (`26fd31f` → `9833adf`), sem spec da F1 (exceção ao Art. 1.1). |
 | ACE-08 | ❌ | Não há orientação na tela de login nem redefinição de senha pela IS. |
 | ACE-09 | ❌ | O link "Usuários" abre só o formulário de criação. Não há lista, edição, desativação nem reativação. |
 | ACE-10 | 🟡 | Conta inativa não entra, e a sessão aberta deixa de valer na próxima requisição (o Django checa `is_active`). Mas só dá para desativar pelo `/admin/`. |
@@ -66,25 +68,27 @@ Para cada requisito da [`SGIS_SPEC_MVP_v0.4.md`](SGIS_SPEC_MVP_v0.4.md), o que o
 
 ## F3 · Trilhas
 
+**Concluída em 2026-10-28** (tarefas T1 a T7). Detalhes na seção 6 da [`F3-trilhas/spec.md`](F3-trilhas/spec.md).
+
 | ID | Situação | Hoje |
 |---|---|---|
-| TRL-01 | 🔀 | A trilha tem `tipo` (`padrao` / `custom`) e a flag `pre_incubacao`. A v0.4 pede o campo **etapa** (vazio, pré-incubação, incubação, desincubação). Só existe a trilha de pré-incubação, criada pela migração `trilhas/0005`. |
-| TRL-02 | 🟡 | O professor cria trilha com título e descrição (`/trilhas/nova/`). **Sem atividades.** |
-| TRL-03 | ❌ | A IS não tem tela para as trilhas de etapa (só o `/admin/`). |
-| TRL-04 | ❌ | Não existe model de atividade. |
-| TRL-05 | ❌ | Sem estados: toda trilha é tratada como publicada. |
-| TRL-06 | ❌ | Não há edição de trilha. |
-| TRL-07 | ❌ | Não há edição (o dono existe: `usuario_criador`). |
-| TRL-08 | ❌ | Depende do TRL-04 (S). |
-| TRL-09 | ❌ | (C). |
-| TRL-10 | 🟡 | IS vê todas (`/trilhas/todas/`) ✅; empreendedor vê as inscritas (`/trilhas/inscritas/`) ✅. O professor vê **só as dele**: não vê as trilhas de etapa nem as de outros professores nos empreendimentos que atende. |
+| TRL-01 | ✅ | Trilha com `etapa` (vazia nas personalizadas) e as três trilhas de etapa, sem usuário dono. |
+| TRL-02 | ✅ | Professor e IS criam trilhas personalizadas, com atividades. |
+| TRL-03 | ✅ | A IS edita e publica as trilhas de etapa pela interface. |
+| TRL-04 | ✅ | `AtividadeTrilha` com tipo, endereço, obrigatoriedade, validação, prazo e ordem. |
+| TRL-05 | ✅ | Rascunho → publicada → arquivada, com as regras em `trilhas/regras.py`. |
+| TRL-06 | ✅ | Publicada: só textos mudam e atividades entram no fim; atividade de trilha publicada só é arquivada. |
+| TRL-07 | ✅ | Dono e IS editam; a IS confirma antes de alterar trilha de professor. |
+| TRL-08 | ✅ | Subir e descer atividades, só em rascunho. |
+| TRL-09 | ❌ | Duplicar trilha (C). |
+| TRL-10 | ✅ | Listas por papel e detalhe com 403 para quem não pode ver. |
 
 ## F4 · Inscrição e etapas
 
 | ID | Situação | Hoje |
 |---|---|---|
-| INS-01 | 🟡 | A IS inscreve em `/trilhas/inscricoes/`. Mas pode escolher **qualquer** trilha: não há checagem de "publicada" (não há estados) e é possível inscrever direto numa trilha de etapa. |
-| INS-02 | 🟡 | Um signal inscreve todo empreendimento novo na trilha de pré-incubação. Se ela não existir, só grava um aviso no log; a IS não é avisada. |
+| INS-01 | 🟡 | A IS inscreve em `/trilhas/inscricoes/`. Mas o formulário oferece **qualquer** trilha: em rascunho, arquivada ou de etapa. Os estados já existem (F3); falta a inscrição respeitá-los. |
+| INS-02 | 🟡 | Um signal inscreve todo empreendimento novo na trilha de etapa Pré-incubação, mesmo que ela esteja em rascunho. Se ela não existir, só grava um aviso no log; a IS não é avisada. |
 | INS-03 | ❌ | Sem "avançar etapa". |
 | INS-04 | ❌ | Nada impede duas etapas ao mesmo tempo. |
 | INS-05 | ❌ | Etapa atual não é calculada em lugar nenhum. |
@@ -110,11 +114,11 @@ Nada implementado:
 
 | Regra | Situação | Hoje |
 |---|---|---|
-| RN-16 · Admin não acessa dados de negócio | 🔀 | O `/admin/` registra `Trilha`, `Inscricao` e `Empreendimento`. O admin vê e edita dados de negócio. |
+| RN-16 · Admin não acessa dados de negócio | 🔀 | O `/admin/` registra `Trilha`, `Inscricao` e `Empreendimento` (a `AtividadeTrilha` ficou de fora). O admin vê e edita dados de negócio. Nas telas do sistema, o admin já não vê trilhas. |
 | RN-11 · Nada se apaga | 🟡 | FKs de negócio usam `PROTECT` ✅. Mas o `/admin/` permite apagar trilhas e empreendimentos sem inscrição. |
 | RNF-01 · Segurança | 🟡 | Produção com `DEBUG` desligado, HTTPS, cookies seguros e segredos no ambiente ✅. **Problema:** o login redireciona para o parâmetro `next` sem validar o destino (`redirect(request.GET.get('next'))`), o que permite *open redirect* para um site externo. |
-| RNF-03 · Testes / Constituição Art. 6 | 🟡 | 41 testes, cobrindo permissões, trilhas, inscrições, cadastro e senha. **Nenhum cita o ID** do requisito. Não há CI nem o teste "toda rota exige login". `empreendimentos` não tem testes. |
-| Constituição Art. 7.5 · Regras num lugar só | 🟡 | As transições de inscrição estão em `trilhas/views.py`, junto das views. |
+| RNF-03 · Testes / Constituição Art. 6 | 🟡 | 110 testes. Os da F3 (`trilhas/test_f3.py`) citam o ID do critério; os mais antigos (`trilhas/tests.py`, `usuarios/tests.py`) não. Não há CI nem o teste "toda rota exige login". `empreendimentos` não tem testes. |
+| Constituição Art. 7.5 · Regras num lugar só | 🟡 | As regras de trilha estão em `trilhas/regras.py` ✅. As transições de inscrição continuam em `trilhas/views.py`, junto das views. |
 | Limpeza | — | `CLASSES_INPUT` duplicado em `usuarios/forms.py` e `trilhas/forms.py`. |
 
 ---
@@ -125,15 +129,14 @@ Ajustes que as features vão precisar fazer em código existente (não são feat
 
 | Onde | Mudança | Feature |
 |---|---|---|
-| `Trilha.tipo` + `Trilha.pre_incubacao` | Trocar pelo campo `etapa` e acrescentar `status`, `publicada_em`, `arquivada_em`, com migração de dados (a trilha de pré-incubação atual vira `etapa = pre_incubacao`, publicada) | F3 |
-| Views, templates e testes que usam `Trilha.Tipo` e `pre_incubacao` | Atualizar para `etapa` | F3 |
 | `Inscricao.Status` e restrição única | Acrescentar Concluída e `concluido_em`; restrição única passa a ser só entre ativa e pausada | F4 |
-| `InscricaoForm` | Só trilhas de professor publicadas | F4 |
-| Signal da pré-incubação | Passar a considerar a trilha publicada da etapa pré-incubação | F4 |
+| `InscricaoForm` | Só trilhas personalizadas publicadas | F4 |
+| Signal da pré-incubação | Só inscrever se a trilha de etapa Pré-incubação estiver publicada (INS-02) | F4 |
 | `Empreendimento.usuario_professor_supervisor` | Remover (migração), e tirar do admin e do `popular_banco` | F2 |
 | `Empreendimento.tipo` | Lista fixa + e-mail e telefone de contato | F2 |
 | `Usuario` | `deve_trocar_senha`; senha mínima 10 | F1 |
 | Login | Validar o `next` (`url_has_allowed_host_and_scheme`) | F1 |
 | `sgis/settings.py` | `LoginRequiredMiddleware`, expiração por inatividade, `MinimumLengthValidator` com 10 | F1 / Seção 4 |
 | `/admin/` | Tirar os models de negócio do admin, ou restringi-los ao superusuário técnico | F1 |
-| `popular_banco` | Acompanhar as mudanças de model (etapa, sem supervisor) | F2 / F3 |
+| Transições de inscrição em `trilhas/views.py` | Mover para um módulo de regras, como o `trilhas/regras.py` (Art. 7.5) | F4 |
+| `popular_banco` | Tirar o `usuario_professor_supervisor` quando ele sair do model | F2 |

@@ -131,12 +131,23 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 - Duplicar trilha (TRL-09).
 - Etapas internas, vídeos, questionários e upload de arquivos.
 
-## 6. Situação atual (de [`levantamento-codigo-v0.4.md`](../levantamento-codigo-v0.4.md))
+## 6. Situação atual
 
-- Hoje a trilha tem `tipo` (padrão/personalizada) e a flag `pre_incubacao`, em vez de etapa. Só a trilha de **Pré-incubação** existe, e empreendimentos já estão inscritos nela.
-- Não existem atividades nem estados: toda trilha se comporta como publicada.
-- O professor cria trilha só com título e descrição, e não consegue editá-la. A IS não tem tela de trilha de etapa nem cria trilhas personalizadas.
-- Regra de conversão: **a trilha de pré-incubação atual vira a trilha de etapa Pré-incubação, publicada**, mesmo sem atividades (exceção só da conversão). As trilhas personalizadas que já existem ficam **publicadas**, para não sumirem de quem já está inscrito. As trilhas de Incubação e Desincubação são criadas em rascunho. Como fazer isso é assunto do `plan.md`.
+**Atualizada em 2026-10-28, com a F3 concluída** (`main` em `1dea3a8`). Todos os critérios de aceite da seção 4 têm teste passando em `trilhas/test_f3.py`.
+
+- A trilha tem `etapa` (vazia nas personalizadas) e `status` (rascunho, publicada, arquivada). As três trilhas de etapa existem e não têm usuário dono: a dona é a IS.
+- Atividades (`AtividadeTrilha`) com tipo, endereço, obrigatoriedade, exigência de validação, prazo e ordem.
+- Professor e IS criam trilhas personalizadas; o dono e a IS editam, publicam e arquivam; atividades são criadas, editadas, apagadas (só em rascunho), arquivadas e reordenadas (só em rascunho), tudo pela interface.
+- Todas as regras de "quem pode" e "quando pode" estão em `trilhas/regras.py`.
+- A IS só altera trilha de professor depois de confirmar (formulário com caixa de confirmação ou página intermediária), checado no servidor.
+- Listas por papel: o professor vê as suas, as de etapa e as de outros nos empreendimentos que atende; a IS filtra por tipo e estado; o empreendedor vê as inscritas.
+
+**Como foi feita a conversão** (migrações `trilhas/0006` a `0008`, T1): a antiga trilha de pré-incubação virou a trilha de etapa Pré-incubação, publicada, sem perder inscrições; as trilhas personalizadas existentes ficaram publicadas; as de Incubação e Desincubação foram criadas em rascunho.
+
+**O que ficou para outras features:**
+- Inscrever só em trilha publicada e avançar etapa: **F4**.
+- Execuções e progresso das atividades: **F5**.
+- Duplicar trilha (TRL-09, prioridade C): não implementado.
 
 ## 7. Decisões
 
