@@ -618,3 +618,80 @@ class TelasDeAtividadeTests(RegrasBaseTests):
         self.trilha_x.refresh_from_db()
         self.assertEqual(self.trilha_x.status, Trilha.Status.PUBLICADA)
         self.assertEqual([a.titulo for a in self.trilha_x.atividades.all()], ['Ler', 'Acessar', 'Fazer'])
+
+
+class TelasDeListaTests(RegrasBaseTests):
+    """T5: cada papel vê exatamente as trilhas da spec 3.6, na lista e pelo endereço direto."""
+
+    def lista_do_professor(self, professor):
+        self.client.force_login(professor)
+        contexto = self.client.get(reverse('trilhas:minhas')).context
+        return {secao: list(contexto[secao]) for secao in ('minhas', 'de_etapa', 'de_outros')}
+
+    def todas(self, **filtros):
+        self.client.force_login(self.is_user)
+        return list(self.client.get(reverse('trilhas:todas'), filtros).context['trilhas'])
+
+    def status_do_detalhe(self, usuario, trilha):
+        self.client.force_login(usuario)
+        return self.client.get(reverse('trilhas:detalhe', args=[trilha.pk])).status_code
+
+    def test_a20_rascunho_visivel_so_para_dono_e_is(self):
+        """A-20 (TRL-10): rascunho aparece para o dono e para a IS; os demais não veem nem pelo endereço."""
+        self.assertIn(self.trilha_x, self.lista_do_professor(self.prof_x)['minhas'])
+        self.assertIn(self.trilha_x, self.todas())
+
+        listas_do_y = self.lista_do_professor(self.prof_y)
+        self.assertNotIn(self.trilha_x, listas_do_y['minhas'] + listas_do_y['de_outros'])
+        for usuario in (self.prof_y, self.empreendedor, self.admin):
+            with self.subTest(usuario=usuario.email):
+                self.assertEqual(self.status_do_detalhe(usuario, self.trilha_x), 403)
+
+    def test_a21_professor_ve_trilha_de_outro_so_se_atende_o_empreendimento(self):
+        """A-21 (TRL-10): X atende o empreendimento e vê a trilha do Y em 'de outros'; Z não vê."""
+        trilha_y = self.publicada(Trilha.objects.create(titulo='Do Y', usuario_criador=self.prof_y))
+        self.inscrever(self.publicada(self.trilha_x))
+        self.inscrever(trilha_y)
+
+        self.assertIn(trilha_y, self.lista_do_professor(self.prof_x)['de_outros'])
+        self.assertEqual(self.status_do_detalhe(self.prof_x, trilha_y), 200)
+
+        listas_do_z = self.lista_do_professor(self.prof_z)
+        self.assertNotIn(trilha_y, listas_do_z['minhas'] + listas_do_z['de_outros'])
+        self.assertEqual(self.status_do_detalhe(self.prof_z, trilha_y), 403)
+
+    def test_a22_empreendedor_nao_ve_trilha_sem_inscricao(self):
+        """A-22 (TRL-10): o empreendedor vê só as trilhas em que o empreendimento está inscrito."""
+        sem_inscricao = self.publicada(self.trilha_x)
+        trilha_y = self.publicada(Trilha.objects.create(titulo='Do Y', usuario_criador=self.prof_y))
+        self.inscrever(trilha_y)
+
+        self.client.force_login(self.empreendedor)
+        inscricoes = self.client.get(reverse('trilhas:inscritas')).context['inscricoes']
+        trilhas = [inscricao.trilha for inscricao in inscricoes]
+        self.assertIn(trilha_y, trilhas)
+        self.assertIn(self.etapa, trilhas)  # inscrição automática na pré-incubação
+        self.assertNotIn(sem_inscricao, trilhas)
+
+        self.assertEqual(self.status_do_detalhe(self.empreendedor, trilha_y), 200)
+        self.assertEqual(self.status_do_detalhe(self.empreendedor, sem_inscricao), 403)
+
+    def test_professor_ve_as_tres_trilhas_de_etapa(self):
+        """TRL-10: a seção de etapa do professor tem as três trilhas, em leitura."""
+        self.assertCountEqual(
+            [trilha.etapa for trilha in self.lista_do_professor(self.prof_z)['de_etapa']],
+            Trilha.Etapa.values,
+        )
+
+    def test_is_filtra_por_tipo_e_estado(self):
+        """TRL-10: filtros da lista da IS por tipo e por estado, combináveis."""
+        publicada = self.publicada(Trilha.objects.create(titulo='Publicada', usuario_criador=self.prof_y))
+
+        rascunhos = self.todas(estado=Trilha.Status.RASCUNHO)
+        self.assertIn(self.trilha_x, rascunhos)
+        self.assertNotIn(publicada, rascunhos)
+
+        personalizadas_publicadas = self.todas(tipo='personalizada', estado=Trilha.Status.PUBLICADA)
+        self.assertEqual(personalizadas_publicadas, [publicada])
+
+        self.assertEqual(len(self.todas(estado='xyz')), Trilha.objects.count())  # filtro inválido é ignorado
