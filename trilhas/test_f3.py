@@ -695,3 +695,103 @@ class TelasDeListaTests(RegrasBaseTests):
         self.assertEqual(personalizadas_publicadas, [publicada])
 
         self.assertEqual(len(self.todas(estado='xyz')), Trilha.objects.count())  # filtro inválido é ignorado
+
+
+class ConfirmacaoDaISTests(RegrasBaseTests):
+    """T6: a IS altera trilha de professor só depois de confirmar (spec 3.3.5, decisão 7.7)."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.is_user)
+        self.atividade_x = self.atividade(self.trilha_x, 'Primeira')
+
+    def post(self, nome, objeto, dados=None, confirmar=False, *args):
+        dados = dict(dados or {})
+        if confirmar:
+            dados['confirmar'] = '1'
+        return self.client.post(reverse(f'trilhas:{nome}', args=[objeto.pk, *args]), dados)
+
+    def verificar(self, enviar, mudou):
+        """Sem confirmar, nada muda (formulário ou página de confirmação); confirmando, muda."""
+        resposta = enviar(False)
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(mudou(), 'mudou sem confirmação')
+        enviar(True)
+        self.assertTrue(mudou(), 'não mudou com confirmação')
+
+    def test_a18_is_altera_trilha_de_professor_so_com_confirmacao(self):
+        """A-18 (TRL-07): editar, publicar, arquivar e todas as ações de atividade pedem confirmação."""
+        atividade = self.atividade_x
+        tarefa = {'titulo': 'Nova', 'tipo': AtividadeTrilha.Tipo.TAREFA}
+
+        with self.subTest(acao='editar trilha'):
+            self.verificar(
+                lambda c: self.post('editar', self.trilha_x, {'titulo': 'Pela IS'}, c),
+                lambda: Trilha.objects.get(pk=self.trilha_x.pk).titulo == 'Pela IS',
+            )
+        with self.subTest(acao='criar atividade'):
+            self.verificar(
+                lambda c: self.post('atividade_criar', self.trilha_x, tarefa, c),
+                lambda: self.trilha_x.atividades.filter(titulo='Nova').exists(),
+            )
+        with self.subTest(acao='editar atividade'):
+            self.verificar(
+                lambda c: self.post('atividade_editar', atividade, {**tarefa, 'titulo': 'Editada'}, c),
+                lambda: AtividadeTrilha.objects.get(pk=atividade.pk).titulo == 'Editada',
+            )
+        with self.subTest(acao='apagar atividade'):
+            self.verificar(
+                lambda c: self.post('atividade_apagar', self.trilha_x.atividades.get(titulo='Nova'), None, c),
+                lambda: not self.trilha_x.atividades.filter(titulo='Nova').exists(),
+            )
+        with self.subTest(acao='publicar'):
+            self.verificar(
+                lambda c: self.post('acao', self.trilha_x, None, c, 'publicar'),
+                lambda: Trilha.objects.get(pk=self.trilha_x.pk).status == Trilha.Status.PUBLICADA,
+            )
+        with self.subTest(acao='arquivar atividade'):
+            self.verificar(
+                lambda c: self.post('atividade_arquivar', atividade, None, c),
+                lambda: AtividadeTrilha.objects.get(pk=atividade.pk).arquivada_em is not None,
+            )
+        with self.subTest(acao='arquivar trilha'):
+            self.verificar(
+                lambda c: self.post('acao', self.trilha_x, None, c, 'arquivar'),
+                lambda: Trilha.objects.get(pk=self.trilha_x.pk).status == Trilha.Status.ARQUIVADA,
+            )
+
+    def test_a18_formulario_e_pagina_mostram_o_dono(self):
+        """A-18: antes de confirmar, a IS vê de qual professor é a trilha."""
+        formulario = self.client.get(reverse('trilhas:editar', args=[self.trilha_x.pk]))
+        self.assertContains(formulario, 'name="confirmar"')
+        self.assertContains(formulario, self.prof_x.nome)
+
+        pagina = self.post('acao', self.trilha_x, None, False, 'publicar')
+        self.assertTemplateUsed(pagina, 'trilhas/confirmar_acao.html')
+        self.assertContains(pagina, self.prof_x.nome)
+
+    def test_a18b_edicao_pela_is_mantem_o_professor_como_dono(self):
+        """A-18b (RN-04): depois de a IS editar e publicar, o dono continua sendo o professor."""
+        self.post('editar', self.trilha_x, {'titulo': 'Pela IS'}, True)
+        self.post('acao', self.trilha_x, None, True, 'publicar')
+        self.trilha_x.refresh_from_db()
+        self.assertEqual(self.trilha_x.status, Trilha.Status.PUBLICADA)
+        self.assertEqual(self.trilha_x.usuario_criador, self.prof_x)
+
+    def test_is_nao_confirma_na_trilha_de_etapa_nem_na_propria(self):
+        """Spec 3.3.5: a confirmação é só para trilha de professor."""
+        da_is = Trilha.objects.create(titulo='Da IS', usuario_criador=self.is_user)
+        for trilha in (Trilha.objects.get(etapa=Trilha.Etapa.INCUBACAO), da_is):
+            with self.subTest(trilha=trilha.titulo):
+                formulario = self.client.get(reverse('trilhas:editar', args=[trilha.pk]))
+                self.assertNotContains(formulario, 'name="confirmar"')
+                resposta = self.post('editar', trilha, {'titulo': f'{trilha.titulo} editada'})
+                self.assertRedirects(resposta, reverse('trilhas:detalhe', args=[trilha.pk]))
+                trilha.refresh_from_db()
+                self.assertTrue(trilha.titulo.endswith('editada'))
+
+    def test_professor_dono_nao_confirma(self):
+        """Spec 3.3.5: o próprio professor altera a sua trilha sem confirmação."""
+        self.client.force_login(self.prof_x)
+        resposta = self.post('editar', self.trilha_x, {'titulo': 'Pelo dono'})
+        self.assertRedirects(resposta, reverse('trilhas:detalhe', args=[self.trilha_x.pk]))

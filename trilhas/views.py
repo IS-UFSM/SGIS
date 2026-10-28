@@ -60,11 +60,30 @@ def detalhe_trilha_view(request, pk):
         'ativas': [a for a in atividades if a.arquivada_em is None],
         'arquivadas': [a for a in atividades if a.arquivada_em is not None],
         'pode_editar': pode_editar,
+        'exige_confirmacao': regras.exige_confirmacao(request.user, trilha),
         'pode_publicar': pode_editar and trilha.status == Trilha.Status.RASCUNHO,
         'pode_arquivar': (
             pode_editar and not trilha.e_de_etapa
             and trilha.status == Trilha.Status.PUBLICADA
         ),
+    })
+
+
+def _falta_confirmacao(request, trilha):
+    """A-18 (spec 3.3.5, decisão 7.7): a IS só altera trilha de professor depois de confirmar."""
+    return (
+        request.method == 'POST'
+        and regras.exige_confirmacao(request.user, trilha)
+        and request.POST.get('confirmar') != '1'
+    )
+
+
+def _pedir_confirmacao(request, trilha, descricao):
+    """Página intermediária em que a IS confirma uma ação sobre a trilha de um professor."""
+    return render(request, 'trilhas/confirmar_acao.html', {
+        'trilha': trilha,
+        'descricao': descricao,
+        'acao_url': request.path,
     })
 
 
@@ -79,18 +98,24 @@ def editar_trilha_view(request, pk):
         return redirect('trilhas:detalhe', pk=trilha.pk)
 
     form = TrilhaForm(request.POST or None, instance=trilha)
-    if request.method == 'POST' and form.is_valid():
+    falta_confirmacao = _falta_confirmacao(request, trilha)
+    if request.method == 'POST' and form.is_valid() and not falta_confirmacao:
         form.save()
         messages.success(request, 'Trilha atualizada.')
         return redirect('trilhas:detalhe', pk=trilha.pk)
 
-    return render(request, 'trilhas/criar_trilha.html', {'form': form, 'trilha': trilha})
+    return render(request, 'trilhas/criar_trilha.html', {
+        'form': form,
+        'trilha': trilha,
+        'exige_confirmacao': regras.exige_confirmacao(request.user, trilha),
+        'confirmacao_faltando': falta_confirmacao,
+    })
 
 
-# Ações de estado da trilha: nome da rota -> (função de regras.py, mensagem de sucesso).
+# Ações de estado da trilha: nome da rota -> (função de regras.py, mensagem de sucesso, descrição).
 ACOES_TRILHA = {
-    'publicar': (regras.publicar, 'Trilha publicada.'),
-    'arquivar': (regras.arquivar, 'Trilha arquivada.'),
+    'publicar': (regras.publicar, 'Trilha publicada.', 'publicar esta trilha'),
+    'arquivar': (regras.arquivar, 'Trilha arquivada.', 'arquivar esta trilha'),
 }
 
 
@@ -98,8 +123,10 @@ ACOES_TRILHA = {
 @login_required
 def acao_trilha_view(request, pk, acao):
     """TRL-05: publicar (A-09, A-10) ou arquivar (A-03, A-15) a trilha."""
-    trilha = get_object_or_404(Trilha, pk=pk)
-    funcao, sucesso = ACOES_TRILHA[acao]
+    trilha = get_object_or_404(Trilha.objects.select_related('usuario_criador'), pk=pk)
+    funcao, sucesso, descricao = ACOES_TRILHA[acao]
+    if _falta_confirmacao(request, trilha):
+        return _pedir_confirmacao(request, trilha, descricao)
     try:
         funcao(trilha, request.user)
     except RegraViolada as erro:
@@ -120,7 +147,8 @@ def criar_atividade_view(request, pk):
         return redirect('trilhas:detalhe', pk=trilha.pk)
 
     form = AtividadeForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
+    falta_confirmacao = _falta_confirmacao(request, trilha)
+    if request.method == 'POST' and form.is_valid() and not falta_confirmacao:
         try:
             regras.acrescentar_atividade(trilha, request.user, form.cleaned_data)
         except RegraViolada as erro:
@@ -129,7 +157,12 @@ def criar_atividade_view(request, pk):
             messages.success(request, 'Atividade acrescentada.')
         return redirect('trilhas:detalhe', pk=trilha.pk)
 
-    return render(request, 'trilhas/atividade_form.html', {'form': form, 'trilha': trilha})
+    return render(request, 'trilhas/atividade_form.html', {
+        'form': form,
+        'trilha': trilha,
+        'exige_confirmacao': regras.exige_confirmacao(request.user, trilha),
+        'confirmacao_faltando': falta_confirmacao,
+    })
 
 
 @login_required
@@ -145,20 +178,25 @@ def editar_atividade_view(request, pk):
 
     classe = AtividadeForm if trilha.status == Trilha.Status.RASCUNHO else AtividadeTextoForm
     form = classe(request.POST or None, instance=atividade)
-    if request.method == 'POST' and form.is_valid():
+    falta_confirmacao = _falta_confirmacao(request, trilha)
+    if request.method == 'POST' and form.is_valid() and not falta_confirmacao:
         form.save()
         messages.success(request, 'Atividade atualizada.')
         return redirect('trilhas:detalhe', pk=trilha.pk)
 
     return render(request, 'trilhas/atividade_form.html', {
-        'form': form, 'trilha': trilha, 'atividade': atividade,
+        'form': form,
+        'trilha': trilha,
+        'atividade': atividade,
+        'exige_confirmacao': regras.exige_confirmacao(request.user, trilha),
+        'confirmacao_faltando': falta_confirmacao,
     })
 
 
-# Ações sobre uma atividade: nome -> (função de regras.py, mensagem de sucesso).
+# Ações sobre uma atividade: nome -> (função de regras.py, mensagem de sucesso, descrição).
 ACOES_ATIVIDADE = {
-    'apagar': (regras.apagar_atividade, 'Atividade apagada.'),
-    'arquivar': (regras.arquivar_atividade, 'Atividade arquivada.'),
+    'apagar': (regras.apagar_atividade, 'Atividade apagada.', 'apagar a atividade'),
+    'arquivar': (regras.arquivar_atividade, 'Atividade arquivada.', 'arquivar a atividade'),
 }
 
 
@@ -168,7 +206,9 @@ def acao_atividade_view(request, pk, acao):
     """RN-10: apagar só em rascunho; depois disso, arquivar (A-13)."""
     atividade = get_object_or_404(AtividadeTrilha.objects.select_related('trilha'), pk=pk)
     trilha = atividade.trilha
-    funcao, sucesso = ACOES_ATIVIDADE[acao]
+    funcao, sucesso, descricao = ACOES_ATIVIDADE[acao]
+    if _falta_confirmacao(request, trilha):
+        return _pedir_confirmacao(request, trilha, f'{descricao} "{atividade.titulo}"')
     try:
         funcao(atividade, request.user)
     except RegraViolada as erro:
