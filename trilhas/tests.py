@@ -110,7 +110,12 @@ class InscricaoTests(TestCase):
         self.is_user = Usuario.objects.create_user('is@ufsm.br', 'IS', 'x', papel=Usuario.Papel.IS)
         dono = Usuario.objects.create_user('e@ufsm.br', 'Emp', 'x', papel=Usuario.Papel.EMPREENDEDOR)
         self.emp = Empreendimento.objects.create(nome='Padaria', tipo='alimentos', representante=dono)
-        self.trilha = Trilha.objects.create(titulo='Finanças', usuario_criador=self.is_user)
+        self.trilha = Trilha.objects.create(
+            titulo='Finanças',
+            usuario_criador=self.is_user,
+            status=Trilha.Status.PUBLICADA,
+            publicada_em=timezone.now(),
+        )
         self.url = reverse('trilhas:inscricoes')
 
     def inscricoes(self):
@@ -140,6 +145,44 @@ class InscricaoTests(TestCase):
         self.assertEqual(inscricao.trilha, self.trilha)
         self.assertEqual(inscricao.status, Inscricao.Status.ATIVA)
         self.assertEqual(inscricao.inscrito_por, self.is_user)
+
+    def test_a02_formulario_exibe_somente_trilhas_personalizadas_publicadas(self):
+        rascunho = Trilha.objects.create(titulo='Rascunho', usuario_criador=self.is_user)
+        arquivada = Trilha.objects.create(
+            titulo='Arquivada',
+            usuario_criador=self.is_user,
+            status=Trilha.Status.ARQUIVADA,
+        )
+        etapa = Trilha.objects.get(etapa=Trilha.Etapa.INCUBACAO)
+
+        self.client.force_login(self.is_user)
+        resposta = self.client.get(self.url)
+        trilhas = resposta.context['form'].fields['trilha'].queryset
+
+        self.assertIn(self.trilha, trilhas)
+        self.assertNotIn(rascunho, trilhas)
+        self.assertNotIn(arquivada, trilhas)
+        self.assertNotIn(etapa, trilhas)
+
+    def test_a02_inscricao_forjada_em_trilha_invalida_e_recusada(self):
+        trilhas_invalidas = [
+            Trilha.objects.create(titulo='Rascunho', usuario_criador=self.is_user),
+            Trilha.objects.create(
+                titulo='Arquivada',
+                usuario_criador=self.is_user,
+                status=Trilha.Status.ARQUIVADA,
+            ),
+            Trilha.objects.get(etapa=Trilha.Etapa.INCUBACAO),
+        ]
+
+        self.client.force_login(self.is_user)
+        for trilha in trilhas_invalidas:
+            with self.subTest(trilha=trilha.titulo):
+                resposta = self.inscrever(trilha=trilha.pk)
+                self.assertEqual(resposta.status_code, 200)
+                self.assertFalse(
+                    Inscricao.objects.filter(empreendimento=self.emp, trilha=trilha).exists()
+                )
 
     def test_nao_permite_inscricao_duplicada(self):
         self.client.force_login(self.is_user)
