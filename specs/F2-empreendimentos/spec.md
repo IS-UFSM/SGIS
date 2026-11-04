@@ -1,6 +1,6 @@
 # F2 · Empreendimentos — spec
 
-**Estado:** aprovado · **Data:** 2026-10-28
+**Estado:** aprovado · **Data:** 2026-11-04
 **Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F2) · **Constituição:** [`00-constituicao.md`](../00-constituicao.md) · **Depende de:** [`F1-acesso`](../F1-acesso/spec.md) (criação do empreendimento junto com o empreendedor)
 
 ---
@@ -29,7 +29,7 @@ Dar à IS o cadastro completo dos empreendimentos e a cada pessoa envolvida uma 
 2. O e-mail de contato é do empreendimento e **não** é usado para login; o login é o e-mail da conta do representante (F1).
 
 ### 3.2 Criação e representante
-1. Um empreendimento **só é criado junto com o seu representante**, na criação da conta de empreendedor pela IS (F1, ACE-05). Não existe empreendimento sem representante. Os campos desta seção entram no mesmo formulário.
+1. Um empreendimento **só é criado junto com o seu representante**, na criação da conta de empreendedor pela IS ou pelo admin (F1, ACE-05). Não existe empreendimento sem representante. Os campos desta seção entram no mesmo formulário.
 2. Cada empreendimento tem **exatamente um representante**, que é uma conta com papel empreendedor.
 3. Cada empreendedor representa **exatamente um** empreendimento.
 4. O representante **não muda** pelas telas do MVP. Se a pessoa mudar, a IS desativa a conta antiga e o empreendimento continua com ela como representante; a troca de representante fica para depois.
@@ -105,3 +105,4 @@ Dar à IS o cadastro completo dos empreendimentos e a cada pessoa envolvida uma 
 | 7.2 | O representante pode ser trocado no MVP? | Não. A troca de representante fica para depois do MVP. |
 | 7.3 | Desativar o empreendimento pausa as inscrições ativas? | Não; as inscrições ficam como estão. A IS pausa ou cancela à mão se quiser. |
 | 7.4 | Desativar o empreendimento tira o acesso do representante (pendência 7 da spec mãe)? | Sim, como em 3.6.2: o representante não entra enquanto o empreendimento estiver desativado; a conta dele continua ativa. |
+| 7.5 | O que fazer com dados de produção fora de RN-01? | Cada empreendedor fica com **exatamente um** empreendimento. A produção é consultada antes da migração; havendo casos, a IS diz qual é o certo, e a correção vira um comando revisado (F0, decisão 7.2). |

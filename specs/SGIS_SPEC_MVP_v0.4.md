@@ -1,6 +1,6 @@
 # SGIS — Especificação do MVP
 
-**Versão:** 0.4.3 (revisão após reunião com a IS)
+**Versão:** 0.4.5 (revisão após reunião com a IS)
 
 **Substitui:** `_arquivo/SGIS_SPEC_MVP.md` (v0.3) e, para o MVP, o `_arquivo/MODELAGEM_BANCO.md`. A `_arquivo/SGIS_SPEC_COMPLETA.md` continua como registro da visão inicial, mas vários módulos dela foram descartados (ver seção 12).
 
@@ -52,7 +52,7 @@ Cada usuário tem um único papel.
 | ID | Requisito | Prior. |
 |---|---|---|
 | ACE-00 | Todo endereço exige usuário autenticado. Anônimos são redirecionados ao login, **inclusive** em endereços que não existem. | M |
-| ACE-00a | **Exceções públicas (lista fechada):** tela de login; verificação de saúde do serviço (responde só "ok"); `robots.txt` bloqueando indexação; arquivos estáticos necessários à tela de login. | M |
+| ACE-00a | **Exceções públicas (lista fechada):** tela de login; verificação de saúde do serviço (responde só "ok"); `robots.txt` bloqueando indexação; arquivos estáticos, que não têm dados. | M |
 | ACE-00b | Toda rota nova nasce protegida. Torná-la pública exige marcação explícita, revisada em code review. | M |
 
 **Aceite ACE-00:** *Dado* um visitante sem sessão, *quando* abre qualquer endereço fora da lista de exceções (existente ou não), *então* vai ao login e nenhum dado ou mensagem de "não encontrado" é exibido.
@@ -192,7 +192,8 @@ Cada usuário tem um único papel.
 | Contas | criar, editar, desativar, redefinir senha | — | — | professor e empreendedor | todas |
 | Minha conta | alterar a própria senha | ✔ | ✔ | ✔ | ✔ |
 | Empreendimentos | ver perfil | o próprio | os que atende | todos | — |
-| Empreendimentos | criar, editar, desativar | — | — | ✔ | — |
+| Empreendimentos | criar, junto com o empreendedor | — | — | ✔ | ✔ |
+| Empreendimentos | editar, desativar | — | — | ✔ | — |
 | Trilhas de etapa | criar, editar, publicar, arquivar | — | — | ✔ | — |
 | Trilhas de etapa | ver | as inscritas (atual e anteriores) | ✔ | ✔ | — |
 | Trilhas personalizadas | criar, editar, publicar, arquivar | — | as suas | as suas | — |
@@ -231,7 +232,7 @@ Qualquer acesso fora desta tabela, por lista, busca ou endereço direto, é nega
 | RN-13 | Conta desativada não entra e perde as sessões ativas. |
 | RN-14 | Toda rota exige login, salvo a lista fechada da seção 4. |
 | RN-15 | Dados fictícios nunca vão para produção. |
-| RN-16 | O admin não acessa dados de negócio. |
+| RN-16 | O admin não acessa dados de negócio, exceto para informar os dados do empreendimento ao criar um empreendedor. |
 
 ---
 
@@ -388,3 +389,5 @@ Cada jornada é um teste de ponta a ponta.
 | 0.4.1 | 2026-10-23 | A IS também cria trilhas personalizadas e pode editar as dos professores; "trilha de professor" passa a se chamar "trilha personalizada" (decisões da `F3-trilhas/spec.md`). |
 | 0.4.2 | 2026-10-28 | Decisões das specs F2 e F4: INS-11 (avançar a partir da Desincubação encerra a incubação) e EMP-06 (representante perde o acesso enquanto o empreendimento estiver desativado); pendências 2 e 7 da seção 13 fechadas. |
 | 0.4.3 | 2026-11-04 | Decisão da spec F4 (7.7): a inscrição guarda a data de reativação (`reativado_em`, seção 8). |
+| 0.4.4 | 2026-11-04 | Decisão da spec F0 (7.6): todos os arquivos estáticos são públicos (ACE-00a). |
+| 0.4.5 | 2026-11-04 | Decisão da spec F1 (7.8): o admin informa os dados do empreendimento ao criar um empreendedor (RN-16 e tabela de permissões). |

@@ -179,7 +179,7 @@ O docstring de `regras.py` passa a citar a F4.
 
 **Entrada para a tela de etapa (3.4.1, decisão 7.9 da spec).** Perfil e lista de empreendimentos são telas da F2 e ainda não existem. Enquanto isso, cada cartão de `inscricoes.html` terá um link para a tela de etapa do empreendimento. A F2 acrescenta os dois links quando as telas existirem.
 
-**Aviso de A-06.** Em `criar_usuario_view`, depois de criar um empreendedor, a view mostra `messages.warning` com `regras.aviso_pre_incubacao()`, quando houver aviso. O texto diz que o empreendimento ficará sem etapa até a trilha ser publicada. A criação do empreendimento junto com o representante é da F2 (3.2.1).
+**Aviso de A-06.** Em `criar_usuario_view`, depois de criar um empreendedor, a view mostra `messages.warning` com `regras.aviso_pre_incubacao()`, quando houver aviso. O texto diz que o empreendimento ficará sem etapa até a trilha ser publicada. A criação do empreendimento junto com o representante é da F1 (ACE-05).
 
 ---
 
@@ -200,7 +200,7 @@ Status aparecem com texto, não só com cor (RNF-05).
 ## 8. Outros ajustes
 
 - **`trilhas/signals.py`:** chama `regras.inscrever_na_pre_incubacao`. Mantém o log de quando a trilha não existe. Se ela estiver em rascunho, não inscreve (3.3.2).
-- **`/admin/`:** nada muda aqui. `InscricaoAdmin` ainda permite criar inscrição sem passar por estas regras, o que a RN-16 proíbe. O plano da F3 deixou a retirada dos models de negócio do admin para a F1.
+- **`/admin/`:** nada muda aqui. `InscricaoAdmin` ainda permite criar inscrição sem passar por estas regras, o que a RN-16 proíbe. A retirada dos models de negócio do admin é da F0 (spec, 3.3).
 - **`popular_banco`:** sem mudança. As trilhas de etapa e a do professor já ficam publicadas.
 
 ---
@@ -216,7 +216,7 @@ As migrações deixam Incubação e Desincubação em **rascunho**. Os testes qu
 | A-01 | `test_a01_inscrito_ve_a_trilha_e_outro_nao` |
 | A-02 | `test_a02_formulario_exibe_somente_trilhas_personalizadas_publicadas`, `test_a02_inscricao_forjada_em_trilha_invalida_e_recusada` (PR #23, em `trilhas/tests.py`) |
 | A-03 | `test_a03_recusa_duplicada_ativa_ou_pausada`, `test_a03_aceita_nova_apos_concluida_ou_cancelada` |
-| A-04 | `test_a04_professor_e_empreendedor_nao_inscrevem` |
+| A-04 | `test_a04_so_is_pode_inscrever` |
 | A-05 | `test_a05_empreendimento_novo_entra_na_pre_incubacao_sem_autor` |
 | A-06 | `test_a06_pre_em_rascunho_fica_sem_etapa_e_avisa_is`, `test_a06_publicar_pre_inscreve_pendentes` |
 | A-07 | `test_a07_quem_concluiu_nao_e_reinscrito` (inclui atividade nova na trilha) |
@@ -255,4 +255,4 @@ As migrações deixam Incubação e Desincubação em **rascunho**. Os testes qu
 | Avançar deixar a inscrição concluída sem criar a próxima | `transaction.atomic`, e todas as recusas antes da primeira escrita; A-10 confere que nada muda |
 | A F5 precisar criar execuções em vários lugares | Um único auxiliar de criação de inscrição (seção 4) |
 | Reversa da migração perder a diferença entre concluída e cancelada | Registrada na seção 3; aceitável, porque só se usa em caso de rollback |
-| Inscrição criada pelo `/admin/` sem as regras | RN-16 e F1 (seção 8) |
+| Inscrição criada pelo `/admin/` sem as regras | RN-16 e F0 (seção 8) |

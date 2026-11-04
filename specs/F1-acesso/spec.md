@@ -1,6 +1,6 @@
 # F1 · Acesso e contas — spec
 
-**Estado:** aprovado · **Data:** 2026-10-28
+**Estado:** aprovado · **Data:** 2026-11-04
 **Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F1) e jornadas J-1 e J-8 · **Constituição:** [`00-constituicao.md`](../00-constituicao.md) · **Depende de:** [`F0-fundacao`](../F0-fundacao/spec.md)
 
 ---
@@ -52,7 +52,7 @@ Até as features seguintes criarem os painéis de cada papel (F6, F9), a página
 1. A **IS** cria contas de **professor** e de **empreendedor**: nome, e-mail e uma **senha inicial**. A IS nunca cria contas IS nem admin, nem forjando o formulário.
 2. O **admin** cria contas de **qualquer papel**.
 3. O e-mail é **único**, sem diferenciar maiúsculas: `Maria@x.com` e `maria@x.com` são a mesma conta.
-4. Ao criar um **empreendedor**, a IS informa também os **dados do empreendimento** dele. Os dois são criados juntos: se um falhar, nenhum é salvo. O empreendimento criado entra na pré-incubação como qualquer empreendimento novo (F4).
+4. Ao criar um **empreendedor**, a IS ou o admin informa também os **dados do empreendimento** dele. Os dois são criados juntos: se um falhar, nenhum é salvo. O empreendimento criado entra na pré-incubação como qualquer empreendimento novo (F4).
 5. Toda conta criada por outra pessoa nasce com **troca de senha obrigatória** (3.5).
 
 ### 3.4 Senhas
@@ -88,7 +88,7 @@ Até as features seguintes criarem os painéis de cada papel (F6, F9), a página
 
 **Criação de contas**
 - **A-05 (ACE-04, J-1):** *Dado* a IS, *quando* cria um professor, *então* a conta existe com o papel professor e troca de senha obrigatória. *Quando* tenta criar uma conta IS ou admin, inclusive forjando o formulário, *então* o sistema recusa.
-- **A-06 (ACE-04):** *Dado* o admin, *quando* cria uma conta de qualquer papel, *então* ela é criada com troca de senha obrigatória.
+- **A-06 (ACE-04, ACE-05):** *Dado* o admin, *quando* cria uma conta de qualquer papel, *então* ela é criada com troca de senha obrigatória. *Quando* cria um empreendedor sem os dados do empreendimento, *então* nem a conta nem o empreendimento são criados. *Quando* informa esses dados, *então* os dois são criados, ligados, e depois disso o empreendimento não aparece no `/admin/`.
 - **A-07 (ACE-01, 3.3.3):** *Dado* uma conta `maria@x.com`, *quando* alguém tenta criar `MARIA@x.com`, *então* o sistema recusa.
 - **A-08 (ACE-05, J-1):** *Dado* a IS, *quando* cria um empreendedor com os dados do empreendimento, *então* os dois são criados, ligados, e o empreendimento entra na pré-incubação. *Quando* os dados do empreendimento são inválidos, *então* nem a conta nem o empreendimento são criados.
 
@@ -140,3 +140,4 @@ Até as features seguintes criarem os painéis de cada papel (F6, F9), a página
 | 7.5 | Desativar um empreendedor desativa o empreendimento (e vice-versa)? | Não, são ações separadas. Desativar o empreendimento é da F2 (EMP-06). |
 | 7.6 | O bloqueio por tentativas (ACE-14) entra agora? | Não. Fica para antes de um piloto com dados reais. |
 | 7.7 | A conta da IS que já existe em produção passa a exigir troca de senha? | Sim, a migração marca as contas IS existentes para trocar a senha no próximo acesso. |
+| 7.8 | O admin pode criar uma conta de empreendedor? | Sim, informando os dados do empreendimento no formulário de criação do `/admin/`. Depois disso, o admin não vê nem altera o empreendimento. |

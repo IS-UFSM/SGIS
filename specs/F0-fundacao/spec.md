@@ -1,6 +1,6 @@
 # F0 · Fundação — spec
 
-**Estado:** aprovado · **Data:** 2026-10-28
+**Estado:** aprovado · **Data:** 2026-11-04
 **Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seções 4, 6, 7 e 11 · **Constituição:** [`00-constituicao.md`](../00-constituicao.md)
 
 ---
@@ -37,13 +37,13 @@ Garantir as regras que valem para **todo** o sistema, independentemente de featu
 | Tela de login | Formulário de login |
 | Verificação de saúde | Responde só `ok`, sem nenhum dado; serve para o Render saber se o serviço está no ar |
 | `robots.txt` | Pede que nenhum buscador indexe o site |
-| Arquivos estáticos | Só os necessários para a tela de login aparecer |
+| Arquivos estáticos | Todos os do sistema, que não têm dados (decisão 7.6) |
 
 Qualquer endereço novo fora dessa lista nasce protegido. Acrescentar uma exceção é mudar esta spec.
 
 ### 3.3 Admin sem dados de negócio
 1. O `/admin/` serve **só para gerenciar contas** (usuários e papéis).
-2. Empreendimentos, trilhas, atividades e inscrições **não aparecem** no `/admin/` para ninguém. Esses dados só são vistos e alterados pelas telas do sistema, que aplicam as regras de cada feature (permissões, estados, "nada se apaga").
+2. Empreendimentos, trilhas, atividades e inscrições **não aparecem** no `/admin/` para ninguém. Esses dados só são vistos e alterados pelas telas do sistema, que aplicam as regras de cada feature (permissões, estados, "nada se apaga"). A única exceção é informar os dados do empreendimento ao criar um empreendedor (F1, 3.3.4); depois disso, o admin não os vê nem altera.
 3. A entrada no `/admin/` segue a mesma regra de 3.1: quem não entrou vai para a tela de login do sistema (decisão 7.1).
 
 ### 3.4 Login sem redirecionamento para fora
@@ -68,7 +68,7 @@ Qualquer endereço novo fora dessa lista nasce protegido. Acrescentar uma exceç
 - **A-03 (ACE-00):** *Dado* um usuário logado, *quando* abre um endereço que não existe, *então* vê a página 404 do SGIS.
 
 **Exceções**
-- **A-04 (ACE-00a):** *Dado* um visitante sem sessão, *então* a tela de login, a verificação de saúde, o `robots.txt` e os arquivos estáticos da tela de login respondem sem pedir login.
+- **A-04 (ACE-00a):** *Dado* um visitante sem sessão, *então* a tela de login, a verificação de saúde, o `robots.txt` e os arquivos estáticos respondem sem pedir login.
 - **A-05 (ACE-00a):** *Dado* a verificação de saúde, *então* ela responde só `ok`, sem nenhum dado do sistema.
 - **A-06 (ACE-00a):** *Dado* o `robots.txt`, *então* ele pede a todos os buscadores que não indexem nenhuma página.
 
@@ -114,3 +114,5 @@ Qualquer endereço novo fora dessa lista nasce protegido. Acrescentar uma exceç
 | 7.3 | Endereço da verificação de saúde | `/saude/`, configurado também no Render como *health check path*. |
 | 7.4 | Onde a CI roda? | GitHub Actions. |
 | 7.5 | A CI impede o merge quando falha? | Sim, quando o merge for por PR (proteção da `main`). Merges diretos pelo responsável continuam possíveis. |
+| 7.6 | Todos os arquivos estáticos podem ser públicos, inclusive os do `/admin/`? | Sim. Eles não têm dados, e filtrar arquivo por arquivo exigiria código próprio sem ganho de segurança. |
+| 7.7 | O admin pode informar dados de empreendimento? | Só ao criar um empreendedor, porque todo empreendedor tem um empreendimento (F1, decisão 7.8). |
