@@ -1,6 +1,6 @@
 # SGIS — Especificação do MVP
 
-**Versão:** 0.4.2 (revisão após reunião com a IS)
+**Versão:** 0.4.3 (revisão após reunião com a IS)
 
 **Substitui:** `_arquivo/SGIS_SPEC_MVP.md` (v0.3) e, para o MVP, o `_arquivo/MODELAGEM_BANCO.md`. A `_arquivo/SGIS_SPEC_COMPLETA.md` continua como registro da visão inicial, mas vários módulos dela foram descartados (ver seção 12).
 
@@ -245,7 +245,7 @@ Substitui o `MODELAGEM_BANCO.md` para o escopo do MVP. Campos de auditoria (`cri
 | **Empreendimento** | nome, tipo, descrição, e-mail e telefone de contato, representante → Usuário, desativado_em | Nulo em `desativado_em` = ativo |
 | **Trilha** | título, descrição, etapa (vazio, `pre_incubacao`, `incubacao`, `desincubacao`), dono → Usuário, status, publicada_em, arquivada_em | Etapa vazia = trilha personalizada. No máximo uma trilha não arquivada por etapa |
 | **Atividade da trilha** | trilha, título, descrição, tipo, endereço, ordem, obrigatória, exige_validacao, prazo_fixo, dias_apos_inscricao, criada_em, arquivada_em | Um dos dois prazos, ou nenhum |
-| **Inscrição** | empreendimento, trilha, status, inscrito_por (vazio = automática), inscrito_em, pausado_em, cancelado_em, concluido_em, motivo | Única por par entre as ativas e pausadas |
+| **Inscrição** | empreendimento, trilha, status, inscrito_por (vazio = automática), inscrito_em, pausado_em, reativado_em, cancelado_em, concluido_em, motivo | Única por par entre as ativas e pausadas |
 | **Execução da atividade** | inscrição, atividade, status, prazo, concluida_em, atualizada_em | Única por par inscrição–atividade |
 | **Histórico da atividade** | execução, ação, autor, comentário, criado_em | Só inserção |
 | **Nota do prontuário** | empreendimento, autor, texto, criado_em | Só inserção |
@@ -387,3 +387,4 @@ Cada jornada é um teste de ponta a ponta.
 | 0.4 | 2026-10-23 | Revisão da equipe após a reunião com a IS (ver seção 14). |
 | 0.4.1 | 2026-10-23 | A IS também cria trilhas personalizadas e pode editar as dos professores; "trilha de professor" passa a se chamar "trilha personalizada" (decisões da `F3-trilhas/spec.md`). |
 | 0.4.2 | 2026-10-28 | Decisões das specs F2 e F4: INS-11 (avançar a partir da Desincubação encerra a incubação) e EMP-06 (representante perde o acesso enquanto o empreendimento estiver desativado); pendências 2 e 7 da seção 13 fechadas. |
+| 0.4.3 | 2026-11-04 | Decisão da spec F4 (7.7): a inscrição guarda a data de reativação (`reativado_em`, seção 8). |

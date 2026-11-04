@@ -1,7 +1,7 @@
 # F4 · Inscrição e etapas — spec
 
-**Estado:** aprovado · **Data:** 2026-10-28
-**Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F4) e jornadas J-3 e J-4 · **Constituição:** [`00-constituicao.md`](../00-constituicao.md) · **Depende de:** [`F3-trilhas`](../F3-trilhas/spec.md) (concluída)
+**Estado:** aprovado · **Data:** 2026-11-04
+**Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F4) e jornadas J-3 e J-4 · **Constituição:** [`00-constituicao.md`](../00-constituicao.md) · **Depende de:** [`F3-trilhas`](../F3-trilhas/spec.md) (concluída). É feita antes da [`F2-empreendimentos`](../F2-empreendimentos/spec.md), cujas telas recebem depois as entradas para esta feature (decisão 7.9)
 
 ---
 
@@ -45,7 +45,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 3. A inscrição automática não tem autor (aparece como "inscrição automática").
 
 ### 3.4 Avançar etapa
-1. Tela própria, só da **IS**, a partir do perfil ou da lista de empreendimentos.
+1. Tela própria, só da **IS**, a partir do perfil ou da lista de empreendimentos. Enquanto essas telas não existem, a entrada é pela tela de inscrições (decisão 7.9).
 2. A ordem das etapas é **Pré-incubação → Incubação → Desincubação**. Só se avança para a **seguinte**.
 3. Ao avançar:
    - a inscrição na etapa atual vira **Concluída**, com a data;
@@ -54,6 +54,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 4. Só se avança se a trilha da próxima etapa estiver **publicada**; senão, o sistema recusa e diz qual trilha falta publicar.
 5. Só se avança com a inscrição atual **ativa**: se estiver pausada, a IS reativa antes.
 6. **A partir da Desincubação**, "avançar" **encerra a incubação**: a inscrição na Desincubação vira Concluída e o empreendimento fica sem etapa ativa, marcado como "incubação concluída".
+7. Empreendimento **desativado** não avança, nem a partir da Desincubação.
 
 ### 3.5 Status da inscrição
 | Ação | De | Para | Quem | Observação |
@@ -66,10 +67,12 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 1. Uma inscrição concluída ou cancelada **não volta**. Para continuar, a IS faz uma inscrição nova (3.1.3).
 2. Nada é apagado: todas as inscrições ficam no histórico do empreendimento, com as datas de cada mudança.
 3. **Cancelar a inscrição de etapa** deixa o empreendimento sem etapa.
+4. Cada inscrição guarda a data **mais recente** de cada tipo de mudança e **um único** motivo: pausar de novo substitui a data da pausa, e um motivo novo substitui o anterior.
 
 ### 3.5a Definir etapa (correção)
 1. Para corrigir um avanço errado ou um cancelamento, a **IS** pode **definir a etapa** de um empreendimento que está **sem etapa ativa**: escolhe a etapa e ele é inscrito, como Ativa, na trilha dessa etapa, que precisa estar publicada.
 2. É a única forma de inscrever à mão numa trilha de etapa (exceção a 3.2.1). A inscrição fica registrada com quem a fez.
+3. Empreendimento **desativado** não tem a etapa definida.
 
 ### 3.6 Inscrição pausada
 1. O empreendedor **vê** a trilha, mas **não marca** atividades (a marcação é da F5).
@@ -102,6 +105,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 - **A-10 (3.4.4):** *Dado* a trilha de Incubação em rascunho, *quando* a IS tenta avançar A, *então* o sistema recusa, diz que a Incubação precisa ser publicada, e nada muda.
 - **A-11 (3.4.5):** *Dado* a inscrição de etapa de A pausada, *quando* a IS tenta avançar, *então* o sistema recusa e nada muda.
 - **A-12 (INS-11):** *Dado* A na Desincubação, *quando* a IS avança, *então* a inscrição fica Concluída, A fica sem etapa ativa e aparece como "incubação concluída".
+- **A-12b (3.4.7, 3.5a.3):** *Dado* um empreendimento desativado, *quando* a IS tenta avançar ou definir a etapa, *então* o sistema recusa e nada muda.
 - **A-13 (3.2.1):** *Dado* a tela de inscrição, *então* não há como inscrever à mão numa trilha de etapa.
 - **A-13b (3.5a):** *Dado* A sem etapa ativa (inscrição de etapa cancelada), *quando* a IS define a etapa como Incubação, *então* A é inscrito na Incubação como Ativa. *Dado* A com etapa ativa, *então* a opção de definir etapa não está disponível e uma tentativa forjada é recusada.
 - **A-13c (7.2):** *Dado* uma inscrição ativa em trilha personalizada, *quando* a IS a conclui, *então* ela fica Concluída com a data, e o empreendimento pode ser inscrito de novo nessa trilha.
@@ -144,3 +148,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 | 7.3 | Como a IS corrige um avanço errado ou um cancelamento de etapa? | A IS pode **definir a etapa** de um empreendimento sem etapa ativa: escolhe a etapa e ele é inscrito na trilha dela, que precisa estar publicada. É a única exceção a 3.2.1, só para correção. |
 | 7.4 | Empreendimento com incubação concluída pode ser inscrito em trilhas personalizadas? | Sim. |
 | 7.5 | A inscrição em lote (S) entra nesta feature? | Sim, como última tarefa, separada das obrigatórias. |
+| 7.6 | A IS pode avançar ou definir a etapa de um empreendimento desativado? | Não, seguindo a F2 (3.6.2). A recusa vale também para avançar a partir da Desincubação, para a regra ser uma só. |
+| 7.7 | A reativação grava data? | Sim, como as demais mudanças de status (A-14). |
+| 7.8 | O que acontece com a data e o motivo quando a inscrição muda de novo? | O valor novo substitui o anterior (3.5.4). O histórico de cada mudança depende de auditoria, adiada no MVP. |
+| 7.9 | A F4 vem antes da F2? | Sim. Até a F2 existir, a entrada para a tela de etapa fica na tela de inscrições; a F2 acrescenta as entradas pelo perfil e pela lista. |
