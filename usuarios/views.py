@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth import login, logout, update_session_auth_hash
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_not_required, login_required
 from django.shortcuts import redirect, render
 
 from .decorators import papel_requerido
@@ -8,6 +8,7 @@ from .forms import LoginForm, TrocarSenhaForm, UsuarioCadastroForm
 from .models import Usuario
 
 
+@login_not_required
 def login_view(request):
     """Tela de login. Redireciona se já autenticado."""
     if request.user.is_authenticated:
