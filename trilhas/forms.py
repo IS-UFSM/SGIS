@@ -150,7 +150,18 @@ class InscricaoForm(forms.ModelForm):
         self.fields['empreendimento'].queryset = (
             Empreendimento.objects.filter(desativado_em__isnull=True).order_by('nome')
         )
-        self.fields['trilha'].queryset = Trilha.objects.order_by('titulo')
+        self.fields['trilha'].queryset = Trilha.objects.filter(
+            etapa='',
+            status=Trilha.Status.PUBLICADA,
+        ).order_by('titulo')
+
+    def clean_trilha(self):
+        trilha = self.cleaned_data['trilha']
+        if trilha.etapa or trilha.status != Trilha.Status.PUBLICADA:
+            raise forms.ValidationError(
+                'Escolha uma trilha personalizada publicada.'
+            )
+        return trilha
 
     def clean(self):
         cleaned = super().clean()
