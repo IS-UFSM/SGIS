@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_not_required
 from django.http import HttpResponse
 from django.test import TestCase, override_settings
 from django.urls import URLPattern, URLResolver, get_resolver, path, reverse
+from django.utils.http import urlencode
 
 from usuarios.models import Usuario
 from usuarios.views import login_view
@@ -70,6 +71,36 @@ class NadaSemLoginTests(TestCase):
     def test_a02_anonimo_em_endereco_inexistente_vai_ao_login(self):
         resposta = self.client.get('/nao-existe/')
         self.assertRedirects(resposta, '/login/?next=/nao-existe/', fetch_redirect_response=False)
+
+
+class LoginSeguroTests(TestCase):
+    """RNF-01: depois do login, só volta a endereços do próprio SGIS."""
+
+    def setUp(self):
+        Usuario.objects.create_user('is-teste@sgis.com', 'Incubadora', 'senha12345',
+                                    papel=Usuario.Papel.IS)
+
+    def entrar(self, proximo):
+        return self.client.post(f"{reverse('login')}?{urlencode({'next': proximo})}", {
+            'email': 'is-teste@sgis.com', 'senha': 'senha12345',
+        })
+
+    def test_a10_next_externo_vai_para_a_pagina_inicial(self):
+        enderecos = [
+            'https://site-externo.com/',
+            '//site-externo.com/',
+            'javascript:alert(1)',
+        ]
+        for proximo in enderecos:
+            with self.subTest(next=proximo):
+                resposta = self.entrar(proximo)
+                self.client.logout()
+                self.assertRedirects(resposta, reverse('home'), fetch_redirect_response=False)
+
+    def test_a11_next_interno_e_respeitado(self):
+        destino = reverse('trilhas:todas')
+        resposta = self.entrar(destino)
+        self.assertRedirects(resposta, destino, fetch_redirect_response=False)
 
 
 class ExcecoesPublicasTests(TestCase):
