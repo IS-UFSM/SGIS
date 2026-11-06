@@ -2,10 +2,21 @@ from django.contrib import messages
 from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_not_required, login_required
 from django.shortcuts import redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .decorators import papel_requerido
 from .forms import LoginForm, TrocarSenhaForm, UsuarioCadastroForm
 from .models import Usuario
+
+
+def proximo_seguro(request):
+    """Devolve o `next` pedido, se ele for do próprio SGIS (RNF-01)."""
+    proximo = request.POST.get('next') or request.GET.get('next')
+    if proximo and url_has_allowed_host_and_scheme(
+        proximo, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return proximo
+    return None
 
 
 @login_not_required
@@ -18,8 +29,7 @@ def login_view(request):
 
     if request.method == 'POST' and form.is_valid():
         login(request, form.get_user())
-        proximo = request.GET.get('next', 'home')
-        return redirect(proximo)
+        return redirect(proximo_seguro(request) or 'home')
 
     return render(request, 'usuarios/login.html', {'form': form})
 
