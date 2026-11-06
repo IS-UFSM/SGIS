@@ -3,8 +3,12 @@ from django.urls import include, path
 
 from usuarios import views
 
+from .views import robots_view, saude_view
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('saude/', saude_view, name='saude'),
+    path('robots.txt', robots_view, name='robots'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('usuarios/novo/', views.criar_usuario_view, name='criar_usuario'),
