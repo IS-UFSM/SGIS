@@ -3,9 +3,10 @@ from django.urls import include, path
 
 from usuarios import views
 
-from .views import robots_view, saude_view
+from .views import admin_login_view, robots_view, saude_view
 
 urlpatterns = [
+    path('admin/login/', admin_login_view, name='admin_login'),  # antes do admin (decisão 7.1)
     path('admin/', admin.site.urls),
     path('saude/', saude_view, name='saude'),
     path('robots.txt', robots_view, name='robots'),
