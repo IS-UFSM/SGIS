@@ -11,8 +11,7 @@ from usuarios.models import Usuario
 from usuarios.views import login_view
 
 # Lista fechada da F0, 3.2. Acrescentar uma rota aqui é mudar a spec.
-# `admin:login` é temporária: sai quando a F0 · T3 sobrepuser /admin/login/ (plano, seção 3).
-ROTAS_PUBLICAS = {'login', 'saude', 'robots', 'admin:login'}
+ROTAS_PUBLICAS = {'login', 'saude', 'robots'}
 
 
 def view_sem_marcacao(request):
@@ -101,6 +100,63 @@ class LoginSeguroTests(TestCase):
         destino = reverse('trilhas:todas')
         resposta = self.entrar(destino)
         self.assertRedirects(resposta, destino, fetch_redirect_response=False)
+
+
+# As telas do /admin/ usam {% static %}, e o manifesto do WhiteNoise só existe depois do collectstatic.
+@override_settings(STORAGES={
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class AdminSoContasTests(TestCase):
+    """RN-16: o /admin/ só gerencia contas, e sua entrada é o login do sistema."""
+
+    def setUp(self):
+        self.admin = Usuario.objects.create_superuser('admin@sgis.com', 'Admin', 'senha12345')
+
+    def test_a08_admin_so_gerencia_contas(self):
+        self.client.force_login(self.admin)
+
+        resposta = self.client.get(reverse('admin:index'))
+        modelos = {modelo['object_name']
+                   for app in resposta.context['app_list'] for modelo in app['models']}
+        self.assertEqual(modelos, {'Usuario'})
+        self.assertEqual(self.client.get('/admin/usuarios/usuario/').status_code, 200)
+
+        enderecos = [
+            '/admin/empreendimentos/empreendimento/',
+            '/admin/trilhas/trilha/',
+            '/admin/trilhas/inscricao/',
+            '/admin/auth/group/',
+        ]
+        for endereco in enderecos:
+            with self.subTest(endereco=endereco):
+                self.assertEqual(self.client.get(endereco).status_code, 404)
+
+    def test_a09_admin_anonimo_vai_ao_login_do_sistema(self):
+        resposta = self.client.get('/admin/')
+        self.assertRedirects(resposta, '/login/?next=/admin/', fetch_redirect_response=False)
+
+    def test_a09_login_do_admin_nao_e_publico(self):
+        resposta = self.client.get('/admin/login/')
+        self.assertRedirects(resposta, '/login/?next=/admin/login/', fetch_redirect_response=False)
+
+    def test_a09_login_do_admin_leva_staff_ao_admin(self):
+        self.client.force_login(self.admin)
+
+        resposta = self.client.get('/admin/login/')
+        self.assertRedirects(resposta, reverse('admin:index'), fetch_redirect_response=False)
+
+        resposta = self.client.get('/admin/login/?next=https://site-externo.com/')
+        self.assertRedirects(resposta, reverse('admin:index'), fetch_redirect_response=False)
+
+    def test_a09_login_do_admin_nega_quem_nao_e_staff(self):
+        usuario = Usuario.objects.create_user('is-teste@sgis.com', 'Incubadora', 'senha12345',
+                                              papel=Usuario.Papel.IS)
+        self.client.force_login(usuario)
+
+        self.assertEqual(self.client.get('/admin/login/').status_code, 403)
+        resposta = self.client.get('/admin/')
+        self.assertRedirects(resposta, '/admin/login/?next=/admin/', target_status_code=403)
 
 
 class ExcecoesPublicasTests(TestCase):
