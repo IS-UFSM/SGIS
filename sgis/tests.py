@@ -159,6 +159,36 @@ class AdminSoContasTests(TestCase):
         self.assertRedirects(resposta, '/admin/login/?next=/admin/', target_status_code=403)
 
 
+class PaginasDeErroTests(TestCase):
+    """Seção 10 da spec mãe e F0, 3.5: páginas 403 e 404 do SGIS, sem detalhes técnicos."""
+
+    def assertPaginaDoSgis(self, resposta, nome):
+        self.assertContains(resposta, nome, status_code=resposta.status_code)  # cabeçalho do sistema
+        self.assertContains(resposta, f'href="{reverse("home")}"', status_code=resposta.status_code)
+        for detalhe in ('Traceback', 'PermissionDenied', 'Http404', 'urlpatterns'):
+            self.assertNotContains(resposta, detalhe, status_code=resposta.status_code)
+
+    def test_a03_logado_em_endereco_inexistente_ve_404_do_sgis(self):
+        usuario = Usuario.objects.create_user('is-teste@sgis.com', 'Incubadora', 'senha12345',
+                                              papel=Usuario.Papel.IS)
+        self.client.force_login(usuario)
+
+        resposta = self.client.get('/nao-existe/')
+        self.assertEqual(resposta.status_code, 404)
+        self.assertTemplateUsed(resposta, '404.html')
+        self.assertPaginaDoSgis(resposta, 'Incubadora')
+
+    def test_a12_403_do_sgis_sem_detalhes_tecnicos(self):
+        professor = Usuario.objects.create_user('prof@sgis.com', 'Professora Ana', 'senha12345',
+                                                papel=Usuario.Papel.PROFESSOR)
+        self.client.force_login(professor)
+
+        resposta = self.client.get(reverse('criar_usuario'))
+        self.assertEqual(resposta.status_code, 403)
+        self.assertTemplateUsed(resposta, '403.html')
+        self.assertPaginaDoSgis(resposta, 'Professora Ana')
+
+
 class ExcecoesPublicasTests(TestCase):
     """ACE-00a: lista fechada de exceções públicas."""
 
