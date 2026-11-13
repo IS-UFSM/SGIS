@@ -7,12 +7,14 @@ from unittest import mock
 from django.core.management import call_command
 from django.db import IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase
+from django.test import Client, TestCase, TransactionTestCase
 from django.urls import reverse
 
 from empreendimentos.models import Empreendimento
+from sgis.excecoes import RegraViolada
 from trilhas.models import Inscricao, Trilha
 
+from . import regras
 from .models import Usuario
 
 ANTES = ('usuarios', '0003_papel_empreendedor')
@@ -272,3 +274,158 @@ class MigracaoTests(TransactionTestCase):
         emails = set(Antigo.objects.values_list('email', flat=True))
         self.assertTrue({'Ana@X.com', 'ana@x.com'} <= emails)  # nada foi alterado
         Antigo.objects.filter(email='Ana@X.com').delete()
+
+
+class GestaoDeContasTests(TestCase):
+    """ACE-08 a ACE-11: a IS gerencia professores e empreendedores (F1, 3.5.4 e 3.6)."""
+
+    def setUp(self):
+        self.is_ = Usuario.objects.create_user('is-teste@sgis.com', 'Incubadora',
+                                               'senha-forte-123', papel=Usuario.Papel.IS)
+        self.outra_is = Usuario.objects.create_user('outra-is@sgis.com', 'Outra IS',
+                                                    'senha-forte-123', papel=Usuario.Papel.IS)
+        self.admin = Usuario.objects.create_superuser('admin@sgis.com', 'Admin', 'senha-forte-123')
+        self.professor = Usuario.objects.create_user('prof@escola.com', 'Professora Ana',
+                                                     'senha-forte-123',
+                                                     papel=Usuario.Papel.PROFESSOR)
+        self.empreendedor = Usuario.objects.create_user('joao@atelie.com', 'João do Ateliê',
+                                                        'senha-antiga-123',
+                                                        papel=Usuario.Papel.EMPREENDEDOR)
+        self.client.force_login(self.is_)
+
+    def alterar(self, conta, acao):
+        return self.client.post(reverse('alterar_conta', args=[conta.pk, acao]))
+
+    def assertVaiAoLogin(self, sessao):
+        resposta = sessao.get(reverse('trocar_senha'))
+        self.assertRedirects(resposta, f"{reverse('login')}?next={reverse('trocar_senha')}",
+                             fetch_redirect_response=False)
+
+    def test_a13_redefinicao_encerra_sessoes_e_exige_troca(self):
+        sessao_do_empreendedor = Client()
+        sessao_do_empreendedor.force_login(self.empreendedor)
+        self.assertEqual(sessao_do_empreendedor.get(reverse('trocar_senha')).status_code, 200)
+
+        resposta = self.client.post(reverse('redefinir_senha', args=[self.empreendedor.pk]),
+                                    {'nova_senha': 'senha-nova-456'}, follow=True)
+
+        self.assertRedirects(resposta, reverse('contas'))
+        self.assertNotContains(resposta, 'senha-nova-456')  # 3.4.2: a senha não aparece
+        self.empreendedor.refresh_from_db()
+        self.assertTrue(self.empreendedor.deve_trocar_senha)
+        self.assertFalse(self.empreendedor.check_password('senha-antiga-123'))
+        self.assertVaiAoLogin(sessao_do_empreendedor)
+        resposta = entrar(Client(), 'joao@atelie.com', 'senha-nova-456')
+        self.assertRedirects(resposta, reverse('home'), fetch_redirect_response=False)
+
+    def test_a13_is_nao_redefine_is_nem_admin(self):
+        for conta in (self.outra_is, self.admin, self.is_):
+            with self.subTest(conta=conta.email):
+                resposta = self.client.post(reverse('redefinir_senha', args=[conta.pk]),
+                                            {'nova_senha': 'senha-nova-456'})
+                self.assertEqual(resposta.status_code, 403)
+                conta.refresh_from_db()
+                self.assertTrue(conta.check_password('senha-forte-123'))
+
+    def test_a09_senha_fraca_recusada_na_redefinicao(self):
+        url = reverse('redefinir_senha', args=[self.professor.pk])
+        senhas_fracas = [
+            ('9 caracteres', 'Trilha#12'),
+            ('comum', 'qwertyuiop'),
+            ('só números', '83920571946'),
+            ('parecida com o e-mail', 'profescola'),
+            ('parecida com o nome', 'professoraana'),  # 3.4.1: o nome também conta
+        ]
+        for motivo, senha in senhas_fracas:
+            with self.subTest(motivo=motivo):
+                resposta = self.client.post(url, {'nova_senha': senha})
+                self.assertEqual(resposta.status_code, 200)
+                self.assertTrue(resposta.context['form'].has_error('nova_senha'))
+                self.professor.refresh_from_db()
+                self.assertTrue(self.professor.check_password('senha-forte-123'))
+
+    def test_a14_lista_de_contas_da_is_com_filtros(self):
+        self.empreendedor.is_active = False
+        self.empreendedor.save()
+
+        contas = set(self.client.get(reverse('contas')).context['contas'])
+        self.assertEqual(contas, {self.professor, self.empreendedor})
+
+        casos = [
+            ({'papel': 'professor'}, {self.professor}),
+            ({'status': 'desativada'}, {self.empreendedor}),
+            ({'papel': 'professor', 'status': 'desativada'}, set()),
+            ({'papel': 'admin', 'status': 'qualquer'}, {self.professor, self.empreendedor}),
+        ]
+        for filtros, esperado in casos:
+            with self.subTest(filtros=filtros):
+                resposta = self.client.get(reverse('contas'), filtros)
+                self.assertEqual(set(resposta.context['contas']), esperado)
+
+    def test_a15_edita_nome_e_email_e_papel_forjado_e_ignorado(self):
+        resposta = self.client.post(reverse('editar_conta', args=[self.professor.pk]), {
+            'nome': 'Professora Ana Lima', 'email': 'Ana.Lima@Escola.com', 'papel': 'admin',
+        })
+
+        self.assertRedirects(resposta, reverse('contas'))
+        self.professor.refresh_from_db()
+        self.assertEqual(self.professor.nome, 'Professora Ana Lima')
+        self.assertEqual(self.professor.email, 'ana.lima@escola.com')
+        self.assertEqual(self.professor.papel, Usuario.Papel.PROFESSOR)
+
+    def test_a15_email_de_outra_conta_e_recusado_na_edicao(self):
+        resposta = self.client.post(reverse('editar_conta', args=[self.professor.pk]), {
+            'nome': 'Professora Ana', 'email': 'JOAO@atelie.com',
+        })
+        self.assertTrue(resposta.context['form'].has_error('email'))
+
+    def test_a16_desativar_encerra_sessao_e_reativar_devolve_acesso(self):
+        sessao_do_empreendedor = Client()
+        sessao_do_empreendedor.force_login(self.empreendedor)
+
+        self.assertRedirects(self.alterar(self.empreendedor, 'desativar'), reverse('contas'))
+        self.empreendedor.refresh_from_db()
+        self.assertFalse(self.empreendedor.is_active)
+        self.assertVaiAoLogin(sessao_do_empreendedor)
+        resposta = entrar(Client(), 'joao@atelie.com', 'senha-antiga-123')
+        self.assertEqual(resposta.status_code, 200)  # o login é recusado
+
+        self.assertRedirects(self.alterar(self.empreendedor, 'reativar'), reverse('contas'))
+        resposta = entrar(Client(), 'joao@atelie.com', 'senha-antiga-123')
+        self.assertRedirects(resposta, reverse('home'), fetch_redirect_response=False)
+
+    def test_a17_ninguem_desativa_a_si_mesmo(self):
+        # A IS não gerencia contas IS, então a própria conta já responde 403.
+        self.assertEqual(self.alterar(self.is_, 'desativar').status_code, 403)
+        self.is_.refresh_from_db()
+        self.assertTrue(self.is_.is_active)
+
+        # Para o admin, que gerencia todas as contas, a regra recusa a própria.
+        with self.assertRaises(RegraViolada):
+            regras.desativar(self.admin, self.admin)
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.is_active)
+
+    def test_a18_lista_de_contas_nao_tem_acao_de_apagar(self):
+        conteudo = self.client.get(reverse('contas')).content.decode().lower()
+        for termo in ('apagar', 'excluir', 'remover'):
+            with self.subTest(termo=termo):
+                self.assertNotIn(termo, conteudo)
+
+    def test_a19_professor_e_empreendedor_nao_abrem_gestao_de_contas(self):
+        for conta, alvo in ((self.professor, self.empreendedor), (self.empreendedor, self.professor)):
+            sessao = Client()
+            sessao.force_login(conta)
+            pedidos = [
+                ('get', reverse('contas')),
+                ('get', reverse('editar_conta', args=[alvo.pk])),
+                ('post', reverse('editar_conta', args=[alvo.pk])),
+                ('get', reverse('redefinir_senha', args=[alvo.pk])),
+                ('post', reverse('redefinir_senha', args=[alvo.pk])),
+                ('post', reverse('alterar_conta', args=[alvo.pk, 'desativar'])),
+            ]
+            for metodo, url in pedidos:
+                with self.subTest(papel=conta.papel, metodo=metodo, url=url):
+                    self.assertEqual(getattr(sessao, metodo)(url).status_code, 403)
+            alvo.refresh_from_db()
+            self.assertTrue(alvo.is_active)
