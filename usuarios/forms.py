@@ -2,18 +2,13 @@ from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 
-from .models import Usuario
+from .models import Usuario, normalizar_email
 
 CLASSES_INPUT = (
     'w-full px-3.5 py-2.5 text-slate-800 bg-slate-50 border border-slate-300 '
     'rounded-lg focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 '
     'placeholder:text-slate-400 transition duration-150'
 )
-
-
-def normalizar_email(email):
-    """Emails são guardados e comparados sempre em minúsculas."""
-    return (email or '').strip().lower()
 
 
 class LoginForm(forms.Form):
@@ -157,7 +152,7 @@ class TrocarSenhaForm(forms.Form):
             'autocomplete': 'new-password',
             'class': CLASSES_INPUT,
         }),
-        help_text='Combine letras e números, com pelo menos 8 caracteres.',
+        help_text='Combine letras e números, com pelo menos 10 caracteres.',
     )
     confirmar_nova_senha = forms.CharField(
         label='Confirmar nova senha',
