@@ -11,6 +11,7 @@ from django.db.models import Max, Q
 from django.utils import timezone
 
 from empreendimentos.models import Empreendimento
+from sgis.excecoes import RegraViolada
 from usuarios.models import Usuario
 
 from .models import AtividadeTrilha, Inscricao, Trilha
@@ -21,10 +22,6 @@ CAMPOS_ATIVIDADE = (
     'exige_validacao', 'prazo_fixo', 'dias_apos_inscricao',
 )
 CAMPOS_TEXTO_ATIVIDADE = ('titulo', 'descricao', 'endereco')
-
-
-class RegraViolada(Exception):
-    """Ação não permitida pelo estado da trilha. A mensagem é mostrada ao usuário."""
 
 
 # Quem é quem
