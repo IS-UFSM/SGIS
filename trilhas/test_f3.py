@@ -38,7 +38,9 @@ class MigracaoF3Tests(TransactionTestCase):
 
     def setUp(self):
         executor = MigrationExecutor(connection)
-        executor.migrate(ANTES_DA_F3)  # também exercita a reversa de 0006 a 0008
+        # Também exercita a reversa de 0006 a 0008. Os outros apps voltam ao estado do teste,
+        # senão migrações posteriores (como usuarios/0004) deixam colunas que o estado antigo não conhece.
+        executor.migrate(ANTES_DA_F3 + OUTROS_APPS)
         apps = executor.loader.project_state(ANTES_DA_F3 + OUTROS_APPS).apps
 
         Usuario = apps.get_model('usuarios', 'Usuario')
