@@ -3,7 +3,6 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from usuarios.decorators import papel_requerido
@@ -269,17 +268,21 @@ def todas_trilhas_view(request):
 
 @papel_requerido(Usuario.Papel.IS)
 def inscricoes_view(request):
-    """IS lista as inscrições e inscreve empreendimentos em trilhas."""
+    """INS-01: IS lista as inscrições e inscreve empreendimentos em trilhas personalizadas."""
     form = InscricaoForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
-        inscricao = form.save(commit=False)
-        inscricao.inscrito_por = request.user
-        inscricao.save()
-        messages.success(
-            request,
-            f'{inscricao.empreendimento} inscrito na trilha "{inscricao.trilha}".',
-        )
+        try:
+            inscricao = regras.inscrever(
+                form.cleaned_data['empreendimento'], form.cleaned_data['trilha'], request.user,
+            )
+        except RegraViolada as erro:
+            messages.error(request, str(erro))
+        else:
+            messages.success(
+                request,
+                f'{inscricao.empreendimento} inscrito na trilha "{inscricao.trilha}".',
+            )
         return redirect('trilhas:inscricoes')
 
     inscricoes = (
@@ -293,39 +296,19 @@ def inscricoes_view(request):
     })
 
 
-# Transições permitidas: ação -> (status de origem, status de destino).
-TRANSICOES_INSCRICAO = {
-    'pausar': ({Inscricao.Status.ATIVA}, Inscricao.Status.PAUSADA),
-    'reativar': ({Inscricao.Status.PAUSADA}, Inscricao.Status.ATIVA),
-    'cancelar': (
-        {Inscricao.Status.ATIVA, Inscricao.Status.PAUSADA},
-        Inscricao.Status.CANCELADA,
-    ),
-}
-
-
 @require_POST
 @papel_requerido(Usuario.Papel.IS)
 def alterar_inscricao_view(request, pk, acao):
-    """IS pausa, reativa ou cancela uma inscrição. O registro nunca é apagado."""
-    inscricao = get_object_or_404(Inscricao, pk=pk)
-    origens, destino = TRANSICOES_INSCRICAO[acao]
-
-    if inscricao.status not in origens:
-        messages.error(request, 'Esta ação não é permitida para o status atual.')
-        return redirect('trilhas:inscricoes')
-
-    inscricao.status = destino
-    if destino == Inscricao.Status.PAUSADA:
-        inscricao.pausado_em = timezone.now()
-    elif destino == Inscricao.Status.CANCELADA:
-        inscricao.cancelado_em = timezone.now()
-    motivo = request.POST.get('motivo', '').strip()
-    if motivo:
-        inscricao.motivo = motivo
-    inscricao.save()
-
-    messages.success(request, f'Inscrição {inscricao} atualizada: {inscricao.get_status_display()}.')
+    """INS-06: IS pausa, reativa, cancela ou conclui uma inscrição. O registro nunca é apagado."""
+    inscricao = get_object_or_404(Inscricao.objects.select_related('trilha'), pk=pk)
+    try:
+        regras.alterar_status(inscricao, request.user, acao, request.POST.get('motivo', ''))
+    except RegraViolada as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(
+            request, f'Inscrição {inscricao} atualizada: {inscricao.get_status_display()}.',
+        )
     return redirect('trilhas:inscricoes')
 
 

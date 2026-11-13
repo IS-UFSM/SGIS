@@ -2,6 +2,7 @@ from django import forms
 
 from empreendimentos.models import Empreendimento
 
+from . import regras
 from .models import AtividadeTrilha, Inscricao, Trilha
 
 CLASSES_INPUT = (
@@ -135,7 +136,11 @@ class AtividadeTextoForm(forms.ModelForm):
 
 
 class InscricaoForm(forms.ModelForm):
-    """IS inscreve um empreendimento ativo em uma trilha."""
+    """IS inscreve um empreendimento ativo numa trilha personalizada publicada (INS-01).
+
+    Quem salva é `regras.inscrever`. Uma trilha forjada fora da lista é recusada pelo
+    próprio campo, porque o queryset já vem filtrado (A-02, A-13).
+    """
 
     class Meta:
         model = Inscricao
@@ -144,36 +149,28 @@ class InscricaoForm(forms.ModelForm):
             'empreendimento': forms.Select(attrs={'class': CLASSES_INPUT}),
             'trilha': forms.Select(attrs={'class': CLASSES_INPUT}),
         }
+        error_messages = {
+            'trilha': {'invalid_choice': 'Escolha uma trilha personalizada publicada.'},
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['empreendimento'].queryset = (
             Empreendimento.objects.filter(desativado_em__isnull=True).order_by('nome')
         )
-        self.fields['trilha'].queryset = Trilha.objects.filter(
-            etapa='',
-            status=Trilha.Status.PUBLICADA,
-        ).order_by('titulo')
-
-    def clean_trilha(self):
-        trilha = self.cleaned_data['trilha']
-        if trilha.etapa or trilha.status != Trilha.Status.PUBLICADA:
-            raise forms.ValidationError(
-                'Escolha uma trilha personalizada publicada.'
-            )
-        return trilha
+        self.fields['trilha'].queryset = regras.trilhas_inscriviveis().order_by('titulo')
 
     def clean(self):
         cleaned = super().clean()
         empreendimento = cleaned.get('empreendimento')
         trilha = cleaned.get('trilha')
         if empreendimento and trilha:
-            existe = (
-                Inscricao.objects
-                .filter(empreendimento=empreendimento, trilha=trilha)
-                .exclude(status=Inscricao.Status.CANCELADA)
-                .exists()
-            )
+            # A-03: só conta inscrição ativa ou pausada; concluída e cancelada liberam.
+            existe = Inscricao.objects.filter(
+                empreendimento=empreendimento,
+                trilha=trilha,
+                status__in=regras.STATUS_EM_ANDAMENTO,
+            ).exists()
             if existe:
                 raise forms.ValidationError(
                     'Este empreendimento já está inscrito nesta trilha.'

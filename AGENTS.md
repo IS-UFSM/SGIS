@@ -56,7 +56,7 @@ Antes de dizer que uma tarefa está pronta: rode os testes e o `makemigrations -
 - **Campos definidos pelo servidor** (dono, autor, status, papel) nunca vêm do formulário: defina-os na view, depois de `form.save(commit=False)`.
 - **Nada se apaga:** use `on_delete=models.PROTECT` entre registros de negócio; desative, cancele ou arquive em vez de apagar.
 - **Estados derivados** (atrasada, progresso, etapa atual) são calculados, nunca gravados.
-- **Regras de transição de estado** ficam num lugar só, no padrão do `TRANSICOES_INSCRICAO` em `trilhas/views.py`.
+- **Regras de transição de estado** ficam num lugar só, no padrão do `TRANSICOES_INSCRICAO` em `trilhas/regras.py`.
 - **Migrações** aditivas e reversíveis: `RenameField` para renomear; migração de dados sempre com função reversa. Nunca edite migrações já aplicadas.
 - Siga o estilo do código ao redor: densidade de comentários, nomes e padrões já usados.
 

@@ -1,6 +1,7 @@
-"""Regras da F3 · Trilhas: quem pode e quando pode (specs/F3-trilhas/spec.md, seção 3).
+"""Regras das trilhas e das inscrições: quem pode e quando pode.
 
-As views só chamam estas funções. Falta de permissão (quem) levanta `PermissionDenied`,
+F3 · Trilhas (specs/F3-trilhas/spec.md, seção 3) e F4 · Inscrição e etapas
+(specs/F4-inscricao/spec.md, seção 3). As views só chamam estas funções. Falta de permissão (quem) levanta `PermissionDenied`,
 que vira 403; condição de estado não atendida (quando) levanta `RegraViolada`, cuja
 mensagem é mostrada ao usuário.
 """
@@ -195,3 +196,127 @@ def mover_atividade(atividade, usuario, direcao):
     atividade.ordem, vizinha.ordem = vizinha.ordem, atividade.ordem
     atividade.save(update_fields=['ordem'])
     vizinha.save(update_fields=['ordem'])
+
+
+# F4 · Inscrição e etapas
+
+ETAPAS_EM_ORDEM = (Trilha.Etapa.PRE_INCUBACAO, Trilha.Etapa.INCUBACAO, Trilha.Etapa.DESINCUBACAO)
+STATUS_EM_ANDAMENTO = (Inscricao.Status.ATIVA, Inscricao.Status.PAUSADA)
+
+
+# Consultas: a etapa é sempre calculada, nunca gravada (INS-05)
+
+def trilhas_inscriviveis():
+    """INS-01 (spec 3.1.2): só trilhas personalizadas publicadas recebem inscrição à mão."""
+    return Trilha.objects.filter(etapa='', status=Trilha.Status.PUBLICADA)
+
+
+def inscricao_de_etapa(empreendimento):
+    """3.2.2: a inscrição ativa ou pausada em trilha de etapa, ou None."""
+    return (
+        empreendimento.inscricoes
+        .exclude(trilha__etapa='')
+        .filter(status__in=STATUS_EM_ANDAMENTO)
+        .select_related('trilha')
+        .first()
+    )
+
+
+def etapa_atual(empreendimento):
+    """INS-05 e A-16: a etapa dessa inscrição; None é "sem etapa". Pausada conta como etapa."""
+    inscricao = inscricao_de_etapa(empreendimento)
+    return inscricao.trilha.etapa if inscricao else None
+
+
+def incubacao_concluida(empreendimento):
+    """INS-11 (3.4.6): sem etapa, e a inscrição de etapa mais recente é a Desincubação concluída."""
+    if inscricao_de_etapa(empreendimento) is not None:
+        return False
+    ultima = (
+        empreendimento.inscricoes
+        .exclude(trilha__etapa='')
+        .select_related('trilha')
+        .order_by('-inscrito_em', '-pk')
+        .first()
+    )
+    return (
+        ultima is not None
+        and ultima.trilha.etapa == Trilha.Etapa.DESINCUBACAO
+        and ultima.status == Inscricao.Status.CONCLUIDA
+    )
+
+
+def proxima_etapa(etapa):
+    """3.4.2: a etapa seguinte, ou None a partir da Desincubação."""
+    posicao = ETAPAS_EM_ORDEM.index(etapa)
+    return ETAPAS_EM_ORDEM[posicao + 1] if posicao + 1 < len(ETAPAS_EM_ORDEM) else None
+
+
+# Inscrever
+
+def _criar_inscricao(empreendimento, trilha, inscrito_por):
+    """Único ponto em que uma inscrição nasce (plano da F4, seção 4).
+
+    A F5 vai criar aqui as execuções das atividades (EXE-01). `inscrito_por` vazio é a
+    inscrição automática (3.3.3).
+    """
+    return Inscricao.objects.create(
+        empreendimento=empreendimento, trilha=trilha, inscrito_por=inscrito_por,
+    )
+
+
+def inscrever(empreendimento, trilha, usuario):
+    """INS-01, INS-07 (spec 3.1): a IS inscreve um empreendimento ativo numa trilha
+    personalizada publicada, sem duplicar uma inscrição ativa ou pausada (A-02, A-03, A-13)."""
+    if not e_is(usuario):
+        raise PermissionDenied
+    if empreendimento.desativado_em is not None:
+        raise RegraViolada('Empreendimento desativado não pode ser inscrito.')
+    if not trilhas_inscriviveis().filter(pk=trilha.pk).exists():
+        raise RegraViolada('Escolha uma trilha personalizada publicada.')
+    if empreendimento.inscricoes.filter(trilha=trilha, status__in=STATUS_EM_ANDAMENTO).exists():
+        raise RegraViolada('Este empreendimento já está inscrito nesta trilha.')
+    return _criar_inscricao(empreendimento, trilha, usuario)
+
+
+# Status
+
+# Transições permitidas (spec 3.5): ação -> (status de origem, status de destino, campo da data).
+TRANSICOES_INSCRICAO = {
+    'pausar': ({Inscricao.Status.ATIVA}, Inscricao.Status.PAUSADA, 'pausado_em'),
+    'reativar': ({Inscricao.Status.PAUSADA}, Inscricao.Status.ATIVA, 'reativado_em'),
+    'cancelar': (
+        {Inscricao.Status.ATIVA, Inscricao.Status.PAUSADA},
+        Inscricao.Status.CANCELADA,
+        'cancelado_em',
+    ),
+    'concluir': ({Inscricao.Status.ATIVA}, Inscricao.Status.CONCLUIDA, 'concluido_em'),
+}
+ACOES_COM_MOTIVO = ('pausar', 'cancelar')  # tabela de 3.5
+
+
+def alterar_status(inscricao, usuario, acao, motivo=''):
+    """INS-06 (spec 3.5): só a IS muda o status; concluída e cancelada não voltam (A-14, A-15).
+
+    Concluir à mão só vale em trilha personalizada; na de etapa, a conclusão vem do
+    avanço (A-13c). Cada inscrição guarda a data mais recente de cada mudança e um único
+    motivo (3.5.4).
+    """
+    if not e_is(usuario):
+        raise PermissionDenied
+    origens, destino, campo_data = TRANSICOES_INSCRICAO[acao]
+    if inscricao.status not in origens:
+        raise RegraViolada('Esta ação não é permitida para o status atual.')
+    if acao == 'concluir' and inscricao.trilha.e_de_etapa:
+        raise RegraViolada(
+            'A inscrição numa trilha de etapa só é concluída ao avançar a etapa.'
+        )
+
+    inscricao.status = destino
+    setattr(inscricao, campo_data, timezone.now())
+    campos = ['status', campo_data]
+    motivo = motivo.strip()
+    if acao in ACOES_COM_MOTIVO and motivo:
+        inscricao.motivo = motivo
+        campos.append('motivo')
+    inscricao.save(update_fields=campos)
