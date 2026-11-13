@@ -27,7 +27,7 @@ urlpatterns = [
     ),
     path('inscricoes/', views.inscricoes_view, name='inscricoes'),
     re_path(
-        r'^inscricoes/(?P<pk>\d+)/(?P<acao>pausar|reativar|cancelar)/$',
+        r'^inscricoes/(?P<pk>\d+)/(?P<acao>pausar|reativar|cancelar|concluir)/$',
         views.alterar_inscricao_view,
         name='alterar_inscricao',
     ),
