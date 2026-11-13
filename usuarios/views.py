@@ -4,6 +4,9 @@ from django.contrib.auth.decorators import login_not_required, login_required
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from empreendimentos.forms import EmpreendimentoCadastroForm
+
+from . import regras
 from .decorators import papel_requerido
 from .forms import LoginForm, TrocarSenhaForm, UsuarioCadastroForm
 from .models import Usuario
@@ -48,15 +51,34 @@ def home_view(request):
 
 @papel_requerido(Usuario.Papel.IS)
 def criar_usuario_view(request):
-    """IS cria um usuário novo (professor ou empreendedor)."""
+    """IS cria um professor ou um empreendedor; o empreendedor vem com o empreendimento (ACE-05)."""
     form = UsuarioCadastroForm(request.POST or None)
+    form_empreendimento = EmpreendimentoCadastroForm(request.POST or None, prefix='empreendimento')
 
     if request.method == 'POST' and form.is_valid():
-        usuario = form.save()
-        messages.success(request, f'Usuário "{usuario.nome}" criado com sucesso.')
-        return redirect('criar_usuario')
+        dados_conta = {campo: form.cleaned_data[campo] for campo in ('nome', 'email', 'papel')}
+        senha = form.cleaned_data['senha']
 
-    return render(request, 'usuarios/criar_usuario.html', {'form': form})
+        if dados_conta['papel'] != Usuario.Papel.EMPREENDEDOR:
+            # Para os outros papéis, os dados do empreendimento são ignorados.
+            conta = regras.criar_conta(dados_conta, senha)
+            messages.success(request, f'Usuário "{conta.nome}" criado com sucesso.')
+            return redirect('criar_usuario')
+
+        if form_empreendimento.is_valid():
+            conta = regras.criar_empreendedor(dados_conta, senha, form_empreendimento.cleaned_data)
+            messages.success(
+                request,
+                f'Usuário "{conta.nome}" e empreendimento '
+                f'"{form_empreendimento.cleaned_data["nome"]}" criados com sucesso.',
+            )
+            return redirect('criar_usuario')
+    elif request.method == 'POST' and request.POST.get('papel') == Usuario.Papel.EMPREENDEDOR:
+        form_empreendimento.is_valid()  # mostra os erros dos dois formulários de uma vez
+
+    return render(request, 'usuarios/criar_usuario.html', {
+        'form': form, 'form_empreendimento': form_empreendimento,
+    })
 
 
 @login_required

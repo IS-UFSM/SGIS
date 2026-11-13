@@ -121,14 +121,6 @@ class UsuarioCadastroForm(forms.ModelForm):
                 self.add_error('senha', erro)
         return cleaned
 
-    def save(self, commit=True):
-        """Cria o usuário com a senha já criptografada."""
-        user = super().save(commit=False)
-        user.set_password(self.cleaned_data['senha'])
-        if commit:
-            user.save()
-        return user
-
 
 class TrocarSenhaForm(forms.Form):
     """Troca da própria senha pelo usuário logado.

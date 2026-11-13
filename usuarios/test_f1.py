@@ -5,10 +5,13 @@ from io import StringIO
 from unittest import mock
 
 from django.core.management import call_command
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
+
+from empreendimentos.models import Empreendimento
+from trilhas.models import Inscricao, Trilha
 
 from .models import Usuario
 
@@ -18,6 +21,124 @@ DEPOIS = ('usuarios', '0004_troca_de_senha_e_criado_em')
 
 def entrar(client, email, senha):
     return client.post(reverse('login'), {'email': email, 'senha': senha})
+
+
+def dados_conta(**extra):
+    """POST válido para criar um professor; `extra` sobrescreve campos."""
+    return {
+        'nome': 'Maria das Trilhas',
+        'email': 'maria@escola.com',
+        'papel': Usuario.Papel.PROFESSOR,
+        'senha': 'senha-inicial-123',
+        **extra,
+    }
+
+
+def dados_empreendedor(**extra):
+    """POST válido para criar um empreendedor com o empreendimento."""
+    return dados_conta(**{
+        'nome': 'João do Ateliê',
+        'email': 'joao@atelie.com',
+        'papel': Usuario.Papel.EMPREENDEDOR,
+        'empreendimento-nome': 'Ateliê da Praça',
+        'empreendimento-tipo': 'Artesanato',
+        'empreendimento-descricao': 'Peças feitas à mão.',
+        **extra,
+    })
+
+
+class CriacaoDeContasTests(TestCase):
+    """ACE-04, ACE-05, RN-01: a IS cria professores e empreendedores (F1, 3.3)."""
+
+    def setUp(self):
+        self.is_ = Usuario.objects.create_user('is-teste@sgis.com', 'Incubadora',
+                                               'senha-forte-123', papel=Usuario.Papel.IS)
+        self.client.force_login(self.is_)
+
+    def test_a05_is_cria_professor_com_troca_obrigatoria(self):
+        resposta = self.client.post(reverse('criar_usuario'), dados_conta())
+
+        self.assertRedirects(resposta, reverse('criar_usuario'))
+        conta = Usuario.objects.get(email='maria@escola.com')
+        self.assertEqual(conta.papel, Usuario.Papel.PROFESSOR)
+        self.assertTrue(conta.deve_trocar_senha)
+        self.assertFalse(Empreendimento.objects.filter(representante=conta).exists())
+
+    def test_a05_is_nao_cria_is_nem_admin(self):
+        for papel in (Usuario.Papel.IS, Usuario.Papel.ADMIN):
+            with self.subTest(papel=papel):
+                resposta = self.client.post(reverse('criar_usuario'), dados_conta(papel=papel))
+                self.assertTrue(resposta.context['form'].has_error('papel'))
+                self.assertFalse(Usuario.objects.filter(email='maria@escola.com').exists())
+
+    def test_a07_email_repetido_com_maiusculas_e_recusado(self):
+        Usuario.objects.create_user('maria@x.com', 'Maria', 'senha-forte-123',
+                                    papel=Usuario.Papel.PROFESSOR)
+
+        resposta = self.client.post(reverse('criar_usuario'), dados_conta(email='MARIA@x.com'))
+
+        self.assertTrue(resposta.context['form'].has_error('email'))
+        self.assertEqual(Usuario.objects.filter(email='maria@x.com').count(), 1)
+
+    def test_a08_empreendedor_e_empreendimento_criados_juntos(self):
+        resposta = self.client.post(reverse('criar_usuario'), dados_empreendedor())
+
+        self.assertRedirects(resposta, reverse('criar_usuario'))
+        conta = Usuario.objects.get(email='joao@atelie.com')
+        self.assertEqual(conta.papel, Usuario.Papel.EMPREENDEDOR)
+        self.assertTrue(conta.deve_trocar_senha)
+        empreendimento = Empreendimento.objects.get(representante=conta)
+        self.assertEqual(empreendimento.nome, 'Ateliê da Praça')
+        self.assertTrue(Inscricao.objects.filter(
+            empreendimento=empreendimento, trilha__etapa=Trilha.Etapa.PRE_INCUBACAO,
+        ).exists())
+
+    def test_a08_empreendimento_invalido_nao_cria_nada(self):
+        resposta = self.client.post(reverse('criar_usuario'),
+                                    dados_empreendedor(**{'empreendimento-nome': ''}))
+
+        self.assertTrue(resposta.context['form_empreendimento'].has_error('nome'))
+        self.assertFalse(Usuario.objects.filter(email='joao@atelie.com').exists())
+        self.assertFalse(Empreendimento.objects.filter(nome='Ateliê da Praça').exists())
+
+    def test_a08_erro_ao_salvar_o_empreendimento_nao_deixa_conta(self):
+        """Pronto quando da T4: um erro no empreendimento não deixa conta criada."""
+        with mock.patch('usuarios.regras.vincular_empreendimento', side_effect=IntegrityError):
+            with self.assertRaises(IntegrityError):
+                self.client.post(reverse('criar_usuario'), dados_empreendedor())
+
+        self.assertFalse(Usuario.objects.filter(email='joao@atelie.com').exists())
+
+    def test_a08_dados_do_empreendimento_sao_ignorados_para_professor(self):
+        resposta = self.client.post(reverse('criar_usuario'), dados_conta(**{
+            'empreendimento-nome': 'Não deveria existir', 'empreendimento-tipo': 'Teste',
+        }))
+
+        self.assertRedirects(resposta, reverse('criar_usuario'))
+        self.assertFalse(Empreendimento.objects.filter(nome='Não deveria existir').exists())
+
+    def test_j1_contas_de_ponta_a_ponta(self):
+        """J-1: a IS cria o empreendedor, e o empreendimento entra na pré-incubação.
+
+        A parte de "precisa trocar a senha antes de usar o sistema" é a F1 · T3 (#31):
+        aqui só se confere que a conta nasce marcada.
+        """
+        self.client.post(reverse('criar_usuario'), dados_empreendedor())
+        conta = Usuario.objects.get(email='joao@atelie.com')
+        empreendimento = conta.empreendimentos.get()
+        self.assertTrue(conta.deve_trocar_senha)
+        self.assertEqual(
+            list(empreendimento.inscricoes.values_list('trilha__etapa', flat=True)),
+            [Trilha.Etapa.PRE_INCUBACAO],
+        )
+
+        resposta = self.client.post(reverse('criar_usuario'),
+                                    dados_conta(email='outra.is@sgis.com', papel=Usuario.Papel.IS))
+        self.assertTrue(resposta.context['form'].has_error('papel'))
+
+        self.client.logout()
+        resposta = entrar(self.client, 'joao@atelie.com', 'senha-inicial-123')
+        self.assertRedirects(resposta, reverse('home'), fetch_redirect_response=False)
 
 
 class EmailEmMinusculasTests(TestCase):
