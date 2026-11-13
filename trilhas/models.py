@@ -135,6 +135,7 @@ class Inscricao(models.Model):
     class Status(models.TextChoices):
         ATIVA = 'ativa', 'Ativa'
         PAUSADA = 'pausada', 'Pausada'
+        CONCLUIDA = 'concluida', 'Concluída'
         CANCELADA = 'cancelada', 'Cancelada'
 
     empreendimento = models.ForeignKey(
@@ -164,17 +165,19 @@ class Inscricao(models.Model):
     inscrito_em = models.DateTimeField('inscrito em', auto_now_add=True)
     pausado_em = models.DateTimeField('pausado em', null=True, blank=True)
     cancelado_em = models.DateTimeField('cancelado em', null=True, blank=True)
+    reativado_em = models.DateTimeField('reativado em', null=True, blank=True)
+    concluido_em = models.DateTimeField('concluído em', null=True, blank=True)
     motivo = models.TextField('motivo', blank=True)
 
     class Meta:
         verbose_name = 'inscrição'
         verbose_name_plural = 'inscrições'
         constraints = [
-            # Só uma inscrição não cancelada por empreendimento e trilha.
+            # INS-07: só uma inscrição ativa ou pausada por empreendimento e trilha.
             models.UniqueConstraint(
                 fields=['empreendimento', 'trilha'],
-                condition=~models.Q(status='cancelada'),
-                name='inscricao_unica_nao_cancelada',
+                condition=models.Q(status__in=['ativa', 'pausada']),
+                name='inscricao_unica_em_andamento',
             ),
         ]
 
