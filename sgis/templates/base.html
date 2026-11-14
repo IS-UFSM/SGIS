@@ -24,5 +24,21 @@
 </head>
 <body class="min-h-full font-sans antialiased text-slate-800 bg-slate-50 flex flex-col {% block body_class %}{% endblock %}">
   {% block conteudo %}{% endblock %}
+  <script>
+    document.querySelectorAll('[data-mostrar-senha]').forEach(function (botao) {
+      botao.addEventListener('click', function () {
+        var campo = document.getElementById(botao.dataset.mostrarSenha);
+        if (!campo) return;
+
+        var mostrando = campo.type === 'text';
+        campo.type = mostrando ? 'password' : 'text';
+        botao.setAttribute('aria-label', mostrando ? 'Mostrar senha' : 'Ocultar senha');
+        botao.setAttribute('title', mostrando ? 'Mostrar senha' : 'Ocultar senha');
+        botao.setAttribute('aria-pressed', String(!mostrando));
+        botao.querySelector('[data-icone-senha="fechado"]').classList.toggle('hidden', !mostrando);
+        botao.querySelector('[data-icone-senha="aberto"]').classList.toggle('hidden', mostrando);
+      });
+    });
+  </script>
 </body>
 </html>

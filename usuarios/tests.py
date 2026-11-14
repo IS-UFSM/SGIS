@@ -117,7 +117,9 @@ class CriarUsuarioEmailTests(TestCase):
         resposta = self.client.post(reverse('login'), {
             'email': 'Maria@Escola.com', 'senha': 'senha-super-segura',
         })
-        self.assertRedirects(resposta, reverse('home'))
+        self.assertRedirects(resposta, reverse('home'), fetch_redirect_response=False)
+        resposta = self.client.get(reverse('home'))
+        self.assertRedirects(resposta, reverse('trilhas:minhas'), fetch_redirect_response=False)
 
 
 class CriarUsuarioSenhaTests(TestCase):

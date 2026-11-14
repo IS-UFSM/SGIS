@@ -9,6 +9,7 @@ CLASSES_INPUT = (
     'rounded-lg focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 '
     'placeholder:text-slate-400 transition duration-150'
 )
+CLASSES_INPUT_SENHA = f'{CLASSES_INPUT} pr-12'
 
 
 class LoginForm(forms.Form):
@@ -28,7 +29,7 @@ class LoginForm(forms.Form):
         widget=forms.PasswordInput(attrs={
             'placeholder': 'Sua senha',
             'autocomplete': 'current-password',
-            'class': CLASSES_INPUT,
+            'class': CLASSES_INPUT_SENHA,
         }),
     )
 
@@ -47,9 +48,7 @@ class LoginForm(forms.Form):
                 self.request, username=email, password=senha,
             )
             if self.user_cache is None:
-                raise forms.ValidationError('Email ou senha incorretos.')
-            if not self.user_cache.is_active:
-                raise forms.ValidationError('Esta conta está desativada.')
+                raise forms.ValidationError('e-mail ou senha incorretos')
 
         return cleaned
 
@@ -69,7 +68,7 @@ class UsuarioCadastroForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={
             'placeholder': 'Senha inicial do usuário',
             'autocomplete': 'new-password',
-            'class': CLASSES_INPUT,
+            'class': CLASSES_INPUT_SENHA,
         }),
     )
 
@@ -134,7 +133,7 @@ class TrocarSenhaForm(forms.Form):
         widget=forms.PasswordInput(attrs={
             'placeholder': 'Sua senha atual',
             'autocomplete': 'current-password',
-            'class': CLASSES_INPUT,
+            'class': CLASSES_INPUT_SENHA,
         }),
     )
     nova_senha = forms.CharField(
@@ -142,7 +141,7 @@ class TrocarSenhaForm(forms.Form):
         widget=forms.PasswordInput(attrs={
             'placeholder': 'Nova senha',
             'autocomplete': 'new-password',
-            'class': CLASSES_INPUT,
+            'class': CLASSES_INPUT_SENHA,
         }),
         help_text='Combine letras e números, com pelo menos 10 caracteres.',
     )
@@ -151,7 +150,7 @@ class TrocarSenhaForm(forms.Form):
         widget=forms.PasswordInput(attrs={
             'placeholder': 'Repita a nova senha',
             'autocomplete': 'new-password',
-            'class': CLASSES_INPUT,
+            'class': CLASSES_INPUT_SENHA,
         }),
     )
 
@@ -209,7 +208,7 @@ class RedefinirSenhaForm(forms.Form):
         widget=forms.PasswordInput(attrs={
             'placeholder': 'Senha nova da conta',
             'autocomplete': 'new-password',
-            'class': CLASSES_INPUT,
+            'class': CLASSES_INPUT_SENHA,
         }),
         help_text='Combine letras e números, com pelo menos 10 caracteres.',
     )
