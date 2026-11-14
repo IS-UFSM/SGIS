@@ -1,14 +1,18 @@
 """Testes da F1 · Acesso e contas (specs/F1-acesso/)."""
+from datetime import timedelta
 import importlib
 import os
 from io import StringIO
 from unittest import mock
 
+from django.conf import settings
 from django.core.management import call_command
 from django.db import IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
+from django.contrib.sessions.models import Session
 from django.test import Client, TestCase, TransactionTestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from empreendimentos.models import Empreendimento
 from sgis.excecoes import RegraViolada
@@ -47,6 +51,90 @@ def dados_empreendedor(**extra):
         'empreendimento-descricao': 'Peças feitas à mão.',
         **extra,
     })
+
+
+class LoginESessaoTests(TestCase):
+    """ACE-01 a ACE-03 e ACE-08: entrada, expiração e orientação no login."""
+
+    def test_a02_mensagem_unica_para_toda_falha_de_login(self):
+        Usuario.objects.create_user('maria@escola.com', 'Maria', 'senha-forte-123',
+                                    papel=Usuario.Papel.PROFESSOR)
+        Usuario.objects.create_user('desativada@escola.com', 'Desativada', 'senha-forte-123',
+                                    papel=Usuario.Papel.PROFESSOR, is_active=False)
+
+        tentativas = (
+            ('senha errada', {'email': 'maria@escola.com', 'senha': 'senha-errada'}),
+            ('e-mail inexistente', {'email': 'nao-existe@escola.com', 'senha': 'senha-forte-123'}),
+            ('conta desativada', {'email': 'desativada@escola.com', 'senha': 'senha-forte-123'}),
+        )
+        for motivo, dados in tentativas:
+            with self.subTest(motivo=motivo):
+                resposta = self.client.post(reverse('login'), dados)
+                self.assertEqual(resposta.status_code, 200)
+                self.assertEqual(
+                    resposta.context['form'].non_field_errors(),
+                    ['e-mail ou senha incorretos'],
+                )
+                self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_a03_cada_papel_vai_para_sua_pagina_inicial(self):
+        empreendedor = Usuario.objects.create_user(
+            'empreendedor@escola.com', 'Empreendedor', 'senha-forte-123',
+            papel=Usuario.Papel.EMPREENDEDOR,
+        )
+        usuarios = (
+            (Usuario.objects.create_user(
+                'is@escola.com', 'IS', 'senha-forte-123', papel=Usuario.Papel.IS,
+            ), reverse('home')),
+            (Usuario.objects.create_user(
+                'professor@escola.com', 'Professor', 'senha-forte-123',
+                papel=Usuario.Papel.PROFESSOR,
+            ), reverse('trilhas:minhas')),
+            (empreendedor, reverse('trilhas:inscritas')),
+            (Usuario.objects.create_superuser(
+                'admin@escola.com', 'Admin', 'senha-forte-123',
+            ), reverse('admin:usuarios_usuario_changelist')),
+        )
+
+        for usuario, destino in usuarios:
+            with self.subTest(papel=usuario.papel):
+                cliente = Client()
+                resposta = entrar(cliente, usuario.email, 'senha-forte-123')
+                self.assertRedirects(resposta, reverse('home'), fetch_redirect_response=False)
+                resposta = cliente.get(reverse('home'))
+                if usuario.papel == Usuario.Papel.IS:
+                    self.assertEqual(resposta.status_code, 200)
+                else:
+                    self.assertRedirects(resposta, destino, fetch_redirect_response=False)
+
+    def test_a04_sessao_expira_por_inatividade(self):
+        usuario = Usuario.objects.create_user(
+            'maria@escola.com', 'Maria', 'senha-forte-123', papel=Usuario.Papel.IS,
+        )
+        self.client.force_login(usuario)
+        self.client.get(reverse('home'))
+        chave = self.client.cookies[settings.SESSION_COOKIE_NAME].value
+        Session.objects.filter(session_key=chave).update(
+            expire_date=timezone.now() - timedelta(seconds=1),
+        )
+
+        resposta = self.client.get(reverse('home'))
+
+        self.assertRedirects(
+            resposta,
+            f'{reverse("login")}?next={reverse("home")}',
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(settings.SESSION_COOKIE_AGE, 7200)
+        self.assertTrue(settings.SESSION_SAVE_EVERY_REQUEST)
+
+    def test_a12_login_mostra_orientacao_de_esqueci_a_senha(self):
+        resposta = self.client.get(reverse('login'))
+
+        self.assertContains(
+            resposta,
+            'Esqueceu a senha? Entre em contato com a Incubadora Social.',
+        )
 
 
 class CriacaoDeContasTests(TestCase):

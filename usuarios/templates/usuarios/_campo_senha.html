@@ -1,0 +1,19 @@
+<div class="relative">
+  {{ campo }}
+  <button type="button"
+          data-mostrar-senha="{{ campo.id_for_label }}"
+          aria-controls="{{ campo.id_for_label }}"
+          aria-label="Mostrar senha"
+          aria-pressed="false"
+          title="Mostrar senha"
+          class="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-brand focus:outline-none focus:text-brand">
+    <svg data-icone-senha="fechado" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.98 8.223A10.477 10.477 0 0 0 2.25 12c1.5 3.75 5.25 6.75 9.75 6.75 1.36 0 2.64-.28 3.8-.78M6.23 6.23A10.45 10.45 0 0 1 12 5.25c4.5 0 8.25 3 9.75 6.75a10.5 10.5 0 0 1-3.02 4.16M6.23 6.23 3 3m3.23 3.23 4.2 4.2m4.14 4.14L21 21m-6.43-6.43a3 3 0 1 1-4.14-4.14" />
+    </svg>
+    <svg data-icone-senha="aberto" class="hidden w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12Z" />
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+    </svg>
+    <span class="sr-only">Mostrar senha</span>
+  </button>
+</div>

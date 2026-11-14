@@ -54,6 +54,13 @@ def logout_view(request):
 @login_required
 def home_view(request):
     """Página inicial após o login."""
+    destinos = {
+        Usuario.Papel.PROFESSOR: 'trilhas:minhas',
+        Usuario.Papel.EMPREENDEDOR: 'trilhas:inscritas',
+        Usuario.Papel.ADMIN: 'admin:usuarios_usuario_changelist',
+    }
+    if destino := destinos.get(request.user.papel):
+        return redirect(destino)
     return render(request, 'usuarios/home.html')
 
 

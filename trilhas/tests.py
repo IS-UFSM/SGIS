@@ -309,7 +309,7 @@ class TrilhasInscritasTests(TestCase):
         self.client.force_login(self.dono)
         for pagina in (reverse('home'), self.url):
             with self.subTest(pagina=pagina):
-                self.assertContains(self.client.get(pagina), f'href="{self.url}"')
+                self.assertContains(self.client.get(pagina, follow=True), f'href="{self.url}"')
 
     def test_apenas_empreendedor_acessa(self):
         for papel in (Usuario.Papel.IS, Usuario.Papel.PROFESSOR, Usuario.Papel.ADMIN):
