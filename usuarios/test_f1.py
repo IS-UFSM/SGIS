@@ -289,6 +289,63 @@ class SenhaFracaTests(TestCase):
                 self.assertTrue(conta.check_password('senha-antiga-123'))
 
 
+class TrocaObrigatoriaTests(TestCase):
+    """ACE-06 e ACE-07: troca de senha e bloqueio da conta marcada."""
+
+    def setUp(self):
+        self.usuario = Usuario.objects.create_user(
+            'maria@escola.com', 'Maria das Trilhas', 'senha-antiga-123',
+            papel=Usuario.Papel.PROFESSOR,
+        )
+        self.client.force_login(self.usuario)
+
+    def dados_troca(self, **extra):
+        return {
+            'senha_atual': 'senha-antiga-123',
+            'nova_senha': 'nova-senha-forte-456',
+            'confirmar_nova_senha': 'nova-senha-forte-456',
+            **extra,
+        }
+
+    def test_a10_troca_de_senha_mantem_a_sessao(self):
+        resposta = self.client.post(reverse('trocar_senha'), self.dados_troca())
+
+        self.assertRedirects(resposta, reverse('trocar_senha'))
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.check_password('nova-senha-forte-456'))
+        self.assertFalse(self.usuario.deve_trocar_senha)
+        self.assertEqual(self.client.session['_auth_user_id'], str(self.usuario.pk))
+
+    def test_a10_senha_atual_errada_nao_muda_nada(self):
+        resposta = self.client.post(
+            reverse('trocar_senha'),
+            self.dados_troca(senha_atual='senha-incorreta-999'),
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(resposta.context['form'].has_error('senha_atual'))
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.check_password('senha-antiga-123'))
+        self.assertFalse(self.usuario.deve_trocar_senha)
+
+    def test_a11_troca_obrigatoria_bloqueia_tudo_menos_sair(self):
+        self.usuario.deve_trocar_senha = True
+        self.usuario.save(update_fields=['deve_trocar_senha'])
+
+        for rota in ('home', 'login', 'trilhas:minhas'):
+            with self.subTest(rota=rota):
+                resposta = self.client.get(reverse(rota))
+                self.assertRedirects(
+                    resposta, reverse('trocar_senha'), fetch_redirect_response=False,
+                )
+
+        self.assertEqual(self.client.get(reverse('trocar_senha')).status_code, 200)
+
+        resposta = self.client.get(reverse('logout'))
+        self.assertRedirects(resposta, reverse('login'))
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+
 class CreateSuperuserTests(TestCase):
     """ACE-13: o primeiro admin é criado por comando e consegue entrar."""
 
