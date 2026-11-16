@@ -119,6 +119,14 @@ class CriarUsuarioEmailTests(TestCase):
         })
         self.assertRedirects(resposta, reverse('home'), fetch_redirect_response=False)
         resposta = self.client.get(reverse('home'))
+        self.assertRedirects(resposta, reverse('trocar_senha'), fetch_redirect_response=False)
+        resposta = self.client.post(URL_TROCAR_SENHA, {
+            'senha_atual': 'senha-super-segura',
+            'nova_senha': 'nova-senha-forte-456',
+            'confirmar_nova_senha': 'nova-senha-forte-456',
+        })
+        self.assertRedirects(resposta, URL_TROCAR_SENHA)
+        resposta = self.client.get(reverse('home'))
         self.assertRedirects(resposta, reverse('trilhas:minhas'), fetch_redirect_response=False)
 
 

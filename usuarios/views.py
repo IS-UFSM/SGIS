@@ -181,7 +181,8 @@ def trocar_senha_view(request):
 
     if request.method == 'POST' and form.is_valid():
         request.user.set_password(form.cleaned_data['nova_senha'])
-        request.user.save(update_fields=['password'])
+        request.user.deve_trocar_senha = False
+        request.user.save(update_fields=['password', 'deve_trocar_senha'])
         # O hash do usuário mudou: sem isto a sessão atual seria encerrada.
         update_session_auth_hash(request, request.user)
         messages.success(request, 'Senha alterada com sucesso.')
