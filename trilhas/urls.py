@@ -31,4 +31,7 @@ urlpatterns = [
         views.alterar_inscricao_view,
         name='alterar_inscricao',
     ),
+    path('empreendimentos/<int:pk>/etapa/', views.etapa_view, name='etapa'),
+    path('empreendimentos/<int:pk>/etapa/avancar/', views.etapa_avancar_view, name='etapa_avancar'),
+    path('empreendimentos/<int:pk>/etapa/definir/', views.etapa_definir_view, name='etapa_definir'),
 ]

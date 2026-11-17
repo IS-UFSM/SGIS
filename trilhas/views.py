@@ -5,11 +5,12 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from empreendimentos.models import Empreendimento
 from usuarios.decorators import papel_requerido
 from usuarios.models import Usuario
 
 from . import regras
-from .forms import AtividadeForm, AtividadeTextoForm, InscricaoForm, TrilhaForm
+from .forms import AtividadeForm, AtividadeTextoForm, DefinirEtapaForm, InscricaoForm, TrilhaForm
 from .models import AtividadeTrilha, Inscricao, Trilha
 from .regras import RegraViolada
 
@@ -310,6 +311,65 @@ def alterar_inscricao_view(request, pk, acao):
             request, f'Inscrição {inscricao} atualizada: {inscricao.get_status_display()}.',
         )
     return redirect('trilhas:inscricoes')
+
+
+# Etapa do empreendimento (F4, 3.4 e 3.5a). Até a F2, a entrada é pela tela de inscrições (7.9).
+
+@papel_requerido(Usuario.Papel.IS)
+def etapa_view(request, pk):
+    """INS-03, INS-05, INS-11: etapa atual, próxima etapa e as ações disponíveis (A-08, A-13b)."""
+    empreendimento = get_object_or_404(Empreendimento, pk=pk)
+    inscricao = regras.inscricao_de_etapa(empreendimento)
+    proxima = regras.proxima_etapa(inscricao.trilha.etapa) if inscricao else None
+    trilha_proxima = Trilha.objects.filter(etapa=proxima).first() if proxima else None
+    return render(request, 'trilhas/etapa.html', {
+        'empreendimento': empreendimento,
+        'inscricao': inscricao,
+        'proxima': Trilha.Etapa(proxima).label if proxima else None,
+        'trilha_proxima': trilha_proxima,
+        'proxima_publicada': (
+            trilha_proxima is not None and trilha_proxima.status == Trilha.Status.PUBLICADA
+        ),
+        'incubacao_concluida': regras.incubacao_concluida(empreendimento),
+        'form': DefinirEtapaForm() if inscricao is None else None,
+    })
+
+
+@require_POST
+@papel_requerido(Usuario.Papel.IS)
+def etapa_avancar_view(request, pk):
+    """INS-03, INS-04, INS-11: avança para a etapa seguinte (A-08 a A-12, A-12b)."""
+    empreendimento = get_object_or_404(Empreendimento, pk=pk)
+    try:
+        nova = regras.avancar_etapa(
+            empreendimento, request.user, request.POST.get('etapa_esperada', ''),
+        )
+    except RegraViolada as erro:
+        messages.error(request, str(erro))
+    else:
+        if nova is None:
+            messages.success(request, f'Incubação de {empreendimento} concluída.')
+        else:
+            messages.success(request, f'{empreendimento} avançou para "{nova.trilha}".')
+    return redirect('trilhas:etapa', pk=empreendimento.pk)
+
+
+@require_POST
+@papel_requerido(Usuario.Papel.IS)
+def etapa_definir_view(request, pk):
+    """3.5a: define a etapa de quem está sem etapa ativa ou pausada (A-12b, A-13b)."""
+    empreendimento = get_object_or_404(Empreendimento, pk=pk)
+    form = DefinirEtapaForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, 'Escolha uma etapa válida.')
+        return redirect('trilhas:etapa', pk=empreendimento.pk)
+    try:
+        nova = regras.definir_etapa(empreendimento, form.cleaned_data['etapa'], request.user)
+    except RegraViolada as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, f'{empreendimento} inscrito em "{nova.trilha}".')
+    return redirect('trilhas:etapa', pk=empreendimento.pk)
 
 
 @papel_requerido(Usuario.Papel.EMPREENDEDOR)

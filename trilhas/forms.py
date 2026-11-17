@@ -176,3 +176,13 @@ class InscricaoForm(forms.ModelForm):
                     'Este empreendimento já está inscrito nesta trilha.'
                 )
         return cleaned
+
+
+class DefinirEtapaForm(forms.Form):
+    """3.5a: a IS escolhe a etapa de um empreendimento sem etapa ativa ou pausada."""
+
+    etapa = forms.ChoiceField(
+        label='Etapa',
+        choices=Trilha.Etapa.choices,
+        widget=forms.Select(attrs={'class': CLASSES_INPUT}),
+    )
