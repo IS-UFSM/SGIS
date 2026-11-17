@@ -295,6 +295,225 @@ class EtapaAtualTests(TestCase):
         self.assertIsNone(regras.proxima_etapa(Trilha.Etapa.DESINCUBACAO))
 
 
+def publicar_etapas(*etapas):
+    """As migrações deixam Incubação e Desincubação em rascunho (plano, seção 9)."""
+    Trilha.objects.filter(etapa__in=etapas or regras.ETAPAS_EM_ORDEM) \
+        .update(status=Trilha.Status.PUBLICADA)
+
+
+class EtapasTests(TestCase):
+    """INS-03, INS-04, INS-11, RN-09 e 3.5a: avançar e definir etapa (T5)."""
+
+    def setUp(self):
+        self.empreendimento, _ = criar_par()
+        self.is_user = Usuario.objects.create_user('is@ufsm.br', 'IS', 'senha-forte-123',
+                                                   papel=Usuario.Papel.IS)
+        self.pre = self.empreendimento.inscricoes.get(trilha__etapa=Trilha.Etapa.PRE_INCUBACAO)
+        self.client.force_login(self.is_user)
+
+    def url(self, nome=''):
+        return reverse(f'trilhas:etapa{nome}', args=[self.empreendimento.pk])
+
+    def avancar(self, etapa_esperada=None):
+        if etapa_esperada is None:
+            etapa_esperada = regras.etapa_atual(self.empreendimento) or ''
+        return self.client.post(self.url('_avancar'), {'etapa_esperada': etapa_esperada})
+
+    def definir(self, etapa):
+        return self.client.post(self.url('_definir'), {'etapa': etapa})
+
+    def de_etapa(self):
+        return self.empreendimento.inscricoes.exclude(trilha__etapa='')
+
+    def em_andamento(self):
+        return self.de_etapa().filter(status__in=regras.STATUS_EM_ANDAMENTO)
+
+    def retrato(self):
+        """Tudo o que uma recusa não pode mudar."""
+        return list(self.de_etapa().order_by('pk').values_list(
+            'pk', 'status', 'concluido_em', 'trilha__etapa'))
+
+    def test_a08_avancar_conclui_e_inscreve_na_proxima(self):
+        publicar_etapas(Trilha.Etapa.INCUBACAO)
+        self.assertRedirects(self.avancar(), self.url())
+
+        self.pre.refresh_from_db()
+        self.assertEqual(self.pre.status, Inscricao.Status.CONCLUIDA)
+        self.assertIsNotNone(self.pre.concluido_em)
+        nova = self.em_andamento().get()
+        self.assertEqual(nova.trilha.etapa, Trilha.Etapa.INCUBACAO)
+        self.assertEqual(nova.status, Inscricao.Status.ATIVA)
+        self.assertEqual(nova.inscrito_por, self.is_user)
+        self.assertEqual(regras.etapa_atual(self.empreendimento), Trilha.Etapa.INCUBACAO)
+
+    def test_a09_sequencia_de_acoes_nunca_gera_duas_etapas(self):
+        publicar_etapas()
+        incubacao = Trilha.objects.get(etapa=Trilha.Etapa.INCUBACAO)
+        acoes = [
+            lambda: self.avancar(),
+            lambda: self.avancar(Trilha.Etapa.PRE_INCUBACAO),  # clique repetido
+            lambda: self.definir(Trilha.Etapa.DESINCUBACAO),
+            lambda: self.client.post(reverse('trilhas:inscricoes'), {
+                'empreendimento': self.empreendimento.pk, 'trilha': incubacao.pk}),
+            lambda: regras.alterar_status(self.em_andamento().get(), self.is_user, 'pausar'),
+            lambda: self.avancar(),
+            lambda: regras.alterar_status(self.em_andamento().get(), self.is_user, 'reativar'),
+            lambda: regras.alterar_status(self.em_andamento().get(), self.is_user, 'cancelar'),
+            lambda: self.definir(Trilha.Etapa.PRE_INCUBACAO),
+            lambda: self.definir(Trilha.Etapa.INCUBACAO),
+            lambda: self.avancar(),
+        ]
+        for passo, acao in enumerate(acoes):
+            with self.subTest(passo=passo):
+                acao()
+                self.assertLessEqual(self.em_andamento().count(), 1)
+        self.assertEqual(regras.etapa_atual(self.empreendimento), Trilha.Etapa.INCUBACAO)
+
+    def test_a10_proxima_etapa_em_rascunho_recusa_e_nada_muda(self):
+        antes = self.retrato()
+        with self.assertRaises(RegraViolada) as recusa:
+            regras.avancar_etapa(self.empreendimento, self.is_user, Trilha.Etapa.PRE_INCUBACAO)
+        self.assertIn('Incubação', str(recusa.exception))  # diz qual trilha falta publicar
+
+        self.avancar()
+        self.assertEqual(self.retrato(), antes)
+        self.assertNotContains(self.client.get(self.url()), self.url('_avancar'))
+
+    def test_a11_inscricao_pausada_nao_avanca(self):
+        publicar_etapas()
+        regras.alterar_status(self.pre, self.is_user, 'pausar')
+        antes = self.retrato()
+
+        self.avancar()
+        with self.assertRaises(RegraViolada):
+            regras.avancar_etapa(self.empreendimento, self.is_user, Trilha.Etapa.PRE_INCUBACAO)
+        self.assertEqual(self.retrato(), antes)
+
+    def test_a12_avancar_da_desincubacao_encerra_a_incubacao(self):
+        publicar_etapas()
+        self.avancar()
+        self.avancar()
+        self.assertEqual(regras.etapa_atual(self.empreendimento), Trilha.Etapa.DESINCUBACAO)
+
+        self.assertContains(self.client.get(self.url()), 'Encerrar a incubação')
+        self.avancar()
+        self.assertFalse(self.em_andamento().exists())
+        self.assertEqual(self.de_etapa().filter(status=Inscricao.Status.CONCLUIDA).count(), 3)
+        self.assertIsNone(regras.etapa_atual(self.empreendimento))
+        self.assertTrue(regras.incubacao_concluida(self.empreendimento))
+        self.assertContains(self.client.get(self.url()), 'Incubação concluída')
+
+    def test_a12b_empreendimento_desativado_nao_avanca_nem_define_etapa(self):
+        publicar_etapas()
+        self.empreendimento.desativado_em = timezone.now()
+        self.empreendimento.save()
+
+        antes = self.retrato()
+        self.avancar()
+        with self.assertRaises(RegraViolada):
+            regras.avancar_etapa(self.empreendimento, self.is_user, Trilha.Etapa.PRE_INCUBACAO)
+        self.assertEqual(self.retrato(), antes)
+
+        # Nem a partir da Desincubação (decisão 7.6), nem definindo a etapa.
+        self.pre.status = Inscricao.Status.CONCLUIDA
+        self.pre.save()
+        Inscricao.objects.create(empreendimento=self.empreendimento,
+                                 trilha=Trilha.objects.get(etapa=Trilha.Etapa.DESINCUBACAO))
+        antes = self.retrato()
+        with self.assertRaises(RegraViolada):
+            regras.avancar_etapa(self.empreendimento, self.is_user, Trilha.Etapa.DESINCUBACAO)
+        self.assertEqual(self.retrato(), antes)
+        regras.alterar_status(self.em_andamento().get(), self.is_user, 'cancelar')
+        antes = self.retrato()
+        self.definir(Trilha.Etapa.INCUBACAO)
+        with self.assertRaises(RegraViolada):
+            regras.definir_etapa(self.empreendimento, Trilha.Etapa.INCUBACAO, self.is_user)
+        self.assertEqual(self.retrato(), antes)
+        pagina = self.client.get(self.url())
+        self.assertNotContains(pagina, self.url('_avancar'))
+        self.assertNotContains(pagina, self.url('_definir'))
+
+    def test_a13b_define_etapa_sem_etapa_ativa(self):
+        regras.alterar_status(self.pre, self.is_user, 'cancelar')
+        self.assertContains(self.client.get(self.url()), 'Sem etapa')
+
+        # 3.5a.1: a trilha da etapa escolhida precisa estar publicada.
+        self.definir(Trilha.Etapa.INCUBACAO)
+        self.assertFalse(self.em_andamento().exists())
+
+        publicar_etapas(Trilha.Etapa.INCUBACAO)
+        self.assertRedirects(self.definir(Trilha.Etapa.INCUBACAO), self.url())
+        nova = self.em_andamento().get()
+        self.assertEqual(nova.trilha.etapa, Trilha.Etapa.INCUBACAO)
+        self.assertEqual(nova.status, Inscricao.Status.ATIVA)
+        self.assertEqual(nova.inscrito_por, self.is_user)  # 3.5a.2
+
+    def test_a13b_definir_forjado_com_etapa_ativa_e_recusado(self):
+        publicar_etapas()
+        for status in (Inscricao.Status.ATIVA, Inscricao.Status.PAUSADA):
+            with self.subTest(status=status):
+                self.pre.status = status
+                self.pre.save()
+                pagina = self.client.get(self.url())
+                self.assertIsNone(pagina.context['form'])
+                self.assertNotContains(pagina, self.url('_definir'))
+
+                antes = self.retrato()
+                self.definir(Trilha.Etapa.INCUBACAO)
+                with self.assertRaises(RegraViolada):
+                    regras.definir_etapa(self.empreendimento, Trilha.Etapa.INCUBACAO, self.is_user)
+                self.assertEqual(self.retrato(), antes)
+
+    def test_avancar_com_etapa_esperada_antiga_e_recusado(self):
+        """Plano, seção 4: um clique duplo não avança duas etapas."""
+        publicar_etapas()
+        self.avancar(Trilha.Etapa.PRE_INCUBACAO)
+        antes = self.retrato()
+        self.avancar(Trilha.Etapa.PRE_INCUBACAO)
+        self.assertEqual(self.retrato(), antes)
+        self.assertEqual(regras.etapa_atual(self.empreendimento), Trilha.Etapa.INCUBACAO)
+
+    def test_rotas_de_etapa_e_lote_negam_outros_papeis(self):
+        """Rotas de etapa (o lote entra na T7): só a IS, em GET e em POST."""
+        publicar_etapas()
+        antes = self.retrato()
+        for papel in (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDEDOR, Usuario.Papel.ADMIN):
+            usuario = Usuario.objects.create_user(f'{papel}@ufsm.br', papel, 'senha-forte-123',
+                                                  papel=papel)
+            self.client.force_login(usuario)
+            with self.subTest(papel=papel):
+                self.assertEqual(self.client.get(self.url()).status_code, 403)
+                self.assertEqual(self.avancar(Trilha.Etapa.PRE_INCUBACAO).status_code, 403)
+                self.assertEqual(self.definir(Trilha.Etapa.INCUBACAO).status_code, 403)
+                for funcao, argumentos in (
+                    (regras.avancar_etapa, (usuario, Trilha.Etapa.PRE_INCUBACAO)),
+                    (regras.definir_etapa, (Trilha.Etapa.INCUBACAO, usuario)),
+                ):
+                    with self.assertRaises(PermissionDenied):
+                        funcao(self.empreendimento, *argumentos)
+        self.assertEqual(self.retrato(), antes)
+
+        self.client.force_login(self.is_user)
+        self.assertEqual(self.client.get(self.url('_avancar')).status_code, 405)
+
+    def test_j3_etapas_de_ponta_a_ponta(self):
+        """J-3: da Pré-incubação à Incubação pela tela, sem nunca estar em duas etapas."""
+        publicar_etapas(Trilha.Etapa.INCUBACAO)
+        pagina = self.client.get(reverse('trilhas:inscricoes'))
+        self.assertContains(pagina, self.url())  # entrada pela tela de inscrições (7.9)
+
+        pagina = self.client.get(self.url())
+        self.assertContains(pagina, 'Pré-incubação')
+        self.assertContains(pagina, 'Avançar para Incubação')
+
+        pagina = self.client.post(self.url('_avancar'),
+                                  {'etapa_esperada': Trilha.Etapa.PRE_INCUBACAO}, follow=True)
+        self.assertContains(pagina, 'avançou para')
+        self.pre.refresh_from_db()
+        self.assertEqual(self.pre.status, Inscricao.Status.CONCLUIDA)
+        self.assertEqual(self.em_andamento().get().trilha.etapa, Trilha.Etapa.INCUBACAO)
+
+
 class MigracaoF4Tests(TransactionTestCase):
     """Migração 0009 (plano da F4, seção 3), rodada de verdade para trás."""
 

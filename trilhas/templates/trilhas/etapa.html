@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block titulo %}Etapa de {{ empreendimento.nome }} — SGIS{% endblock %}
+
+{% block conteudo %}
+{% include 'partials/header.html' %}
+
+<main class="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+  <a href="{% url 'trilhas:inscricoes' %}" class="text-sm font-medium text-brand hover:underline">← Inscrições</a>
+
+  <div class="mt-3">
+    <h1 class="text-2xl font-bold text-slate-900">{{ empreendimento.nome }}</h1>
+    <p class="text-slate-500 mt-1 text-sm">Etapa da incubação: Pré-incubação → Incubação → Desincubação.</p>
+  </div>
+
+  {% for mensagem in messages %}
+    <div class="mt-6 p-4 rounded-xl text-sm {% if mensagem.tags == 'error' %}bg-red-50 border border-red-200 text-red-700{% else %}bg-emerald-50 border border-emerald-200 text-emerald-800{% endif %}" role="status">
+      {{ mensagem }}
+    </div>
+  {% endfor %}
+
+  {% if not empreendimento.ativo %}
+    <div class="mt-6 p-4 rounded-xl bg-slate-100 border border-slate-200 text-sm text-slate-700" role="note">
+      Este empreendimento está desativado: a etapa não pode ser avançada nem definida.
+    </div>
+  {% endif %}
+
+  <section class="mt-6 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Etapa atual</h2>
+
+    {% if inscricao %}
+      <div class="mt-2 flex flex-wrap items-center gap-3">
+        <p class="text-xl font-bold text-slate-900">{{ inscricao.trilha.get_etapa_display }}</p>
+        {% if inscricao.status == 'pausada' %}
+          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">{{ inscricao.get_status_display }}</span>
+        {% else %}
+          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">{{ inscricao.get_status_display }}</span>
+        {% endif %}
+      </div>
+      <p class="mt-1 text-sm text-slate-600">
+        Trilha "{{ inscricao.trilha.titulo }}" —
+        {% if inscricao.inscrito_por %}inscrito por {{ inscricao.inscrito_por.nome }}{% else %}inscrito automaticamente{% endif %}
+        em {{ inscricao.inscrito_em|date:"d/m/Y H:i" }}
+      </p>
+
+      {% if empreendimento.ativo %}
+        <div class="mt-5 pt-5 border-t border-slate-100">
+          {% if inscricao.status == 'pausada' %}
+            <p class="text-sm text-slate-600">A inscrição está pausada. Reative-a na tela de inscrições antes de avançar.</p>
+          {% elif proxima and not proxima_publicada %}
+            <p class="text-sm text-slate-600">
+              Para avançar, a trilha "{% if trilha_proxima %}{{ trilha_proxima.titulo }}{% else %}{{ proxima }}{% endif %}" precisa ser publicada.
+            </p>
+          {% else %}
+            <form method="post" action="{% url 'trilhas:etapa_avancar' empreendimento.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="etapa_esperada" value="{{ inscricao.trilha.etapa }}">
+              {% if proxima %}
+                <button type="submit"
+                        onclick="return confirm('Concluir a {{ inscricao.trilha.get_etapa_display }} e inscrever na {{ proxima }}?')"
+                        class="py-2.5 px-4 bg-brand hover:bg-brand-hover text-white text-sm font-semibold rounded-lg shadow-md shadow-brand/20 active:scale-[0.99] transition duration-150 cursor-pointer">
+                  Avançar para {{ proxima }}
+                </button>
+              {% else %}
+                <button type="submit"
+                        onclick="return confirm('Concluir a Desincubação e encerrar a incubação deste empreendimento?')"
+                        class="py-2.5 px-4 bg-brand hover:bg-brand-hover text-white text-sm font-semibold rounded-lg shadow-md shadow-brand/20 active:scale-[0.99] transition duration-150 cursor-pointer">
+                  Encerrar a incubação
+                </button>
+              {% endif %}
+            </form>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% else %}
+      <p class="mt-2 text-xl font-bold text-slate-900">
+        {% if incubacao_concluida %}Incubação concluída{% else %}Sem etapa{% endif %}
+      </p>
+
+      {% if form and empreendimento.ativo %}
+        <div class="mt-5 pt-5 border-t border-slate-100">
+          <h3 class="font-semibold text-slate-900">Definir etapa</h3>
+          <p class="text-sm text-slate-500 mt-1">Use para corrigir um avanço errado ou um cancelamento. O empreendimento é inscrito, como ativo, na trilha da etapa escolhida.</p>
+          <form method="post" action="{% url 'trilhas:etapa_definir' empreendimento.pk %}" class="mt-4 flex flex-wrap items-end gap-3">
+            {% csrf_token %}
+            <div class="min-w-[14rem]">
+              <label for="{{ form.etapa.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-1.5">{{ form.etapa.label }}</label>
+              {{ form.etapa }}
+            </div>
+            <button type="submit"
+                    class="py-2.5 px-4 bg-brand hover:bg-brand-hover text-white text-sm font-semibold rounded-lg shadow-md shadow-brand/20 active:scale-[0.99] transition duration-150 cursor-pointer">
+              Definir etapa
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

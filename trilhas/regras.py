@@ -279,6 +279,76 @@ def inscrever(empreendimento, trilha, usuario):
     return _criar_inscricao(empreendimento, trilha, usuario)
 
 
+# Etapas
+
+def _travar(empreendimento):
+    """Trava a linha do empreendimento até o fim da transação (INS-04, plano seção 4).
+
+    Dois envios ao mesmo tempo esperam um pelo outro, e o segundo já vê a inscrição criada
+    pelo primeiro. No SQLite o Django ignora o `select_for_update`.
+    """
+    return Empreendimento.objects.select_for_update().get(pk=empreendimento.pk)
+
+
+def _trilha_publicada_da_etapa(etapa):
+    """3.4.4 e 3.5a.1: a trilha da etapa, que precisa estar publicada."""
+    trilha = Trilha.objects.filter(etapa=etapa).first()
+    if trilha is None or trilha.status != Trilha.Status.PUBLICADA:
+        nome = trilha.titulo if trilha else Trilha.Etapa(etapa).label
+        raise RegraViolada(f'A trilha "{nome}" precisa ser publicada antes.')
+    return trilha
+
+
+@transaction.atomic
+def avancar_etapa(empreendimento, usuario, etapa_esperada):
+    """INS-03, INS-04, INS-11, RN-09 (spec 3.4): conclui a etapa atual e inscreve na seguinte.
+
+    Todas as recusas vêm antes da primeira escrita (A-10). `etapa_esperada` é a etapa
+    que a tela mostrava: um segundo clique não avança de novo. Na Desincubação, só
+    conclui: a incubação está encerrada (A-12). Devolve a inscrição nova, ou None.
+    """
+    if not e_is(usuario):
+        raise PermissionDenied
+    empreendimento = _travar(empreendimento)
+    if not empreendimento.ativo:
+        raise RegraViolada('Empreendimento desativado não avança de etapa.')  # 3.4.7
+    inscricao = inscricao_de_etapa(empreendimento)
+    if inscricao is None:
+        raise RegraViolada('O empreendimento está sem etapa; não há o que avançar.')
+    etapa = inscricao.trilha.etapa
+    if etapa != etapa_esperada:
+        raise RegraViolada('A etapa mudou desde que a tela foi aberta. Confira e tente de novo.')
+    if inscricao.status == Inscricao.Status.PAUSADA:
+        raise RegraViolada('A inscrição na etapa atual está pausada. Reative-a antes de avançar.')
+    proxima = proxima_etapa(etapa)
+    trilha_proxima = _trilha_publicada_da_etapa(proxima) if proxima else None
+
+    inscricao.status = Inscricao.Status.CONCLUIDA
+    inscricao.concluido_em = timezone.now()
+    inscricao.save(update_fields=['status', 'concluido_em'])
+    if trilha_proxima is None:
+        return None
+    return _criar_inscricao(empreendimento, trilha_proxima, usuario)
+
+
+@transaction.atomic
+def definir_etapa(empreendimento, etapa, usuario):
+    """3.5a e decisão 7.3: a IS corrige a etapa de quem está sem etapa ativa ou pausada (A-13b)."""
+    if not e_is(usuario):
+        raise PermissionDenied
+    empreendimento = _travar(empreendimento)
+    if not empreendimento.ativo:
+        raise RegraViolada('Empreendimento desativado não tem a etapa definida.')  # 3.5a.3
+    if inscricao_de_etapa(empreendimento) is not None:
+        raise RegraViolada(
+            'O empreendimento já tem uma etapa. Para corrigi-la, cancele a inscrição atual antes.'
+        )
+    if etapa not in ETAPAS_EM_ORDEM:
+        raise RegraViolada('Escolha uma etapa válida.')
+    trilha = _trilha_publicada_da_etapa(etapa)
+    return _criar_inscricao(empreendimento, trilha, usuario)
+
+
 # Status
 
 # Transições permitidas (spec 3.5): ação -> (status de origem, status de destino, campo da data).
