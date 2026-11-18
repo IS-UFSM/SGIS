@@ -18,7 +18,10 @@
   {% endfor %}
 
   <section class="mt-6 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-    <h2 class="font-semibold text-slate-900">Nova inscrição</h2>
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="font-semibold text-slate-900">Nova inscrição</h2>
+      <a href="{% url 'trilhas:inscricoes_lote' %}" class="text-sm font-semibold text-brand hover:underline">Inscrever vários de uma vez</a>
+    </div>
 
     {% if form.non_field_errors %}
       <div class="mt-4 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700" role="alert">

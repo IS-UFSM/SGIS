@@ -10,7 +10,14 @@ from usuarios.decorators import papel_requerido
 from usuarios.models import Usuario
 
 from . import regras
-from .forms import AtividadeForm, AtividadeTextoForm, DefinirEtapaForm, InscricaoForm, TrilhaForm
+from .forms import (
+    AtividadeForm,
+    AtividadeTextoForm,
+    DefinirEtapaForm,
+    InscricaoForm,
+    InscricaoLoteForm,
+    TrilhaForm,
+)
 from .models import AtividadeTrilha, Inscricao, Trilha
 from .regras import RegraViolada
 
@@ -294,6 +301,39 @@ def inscricoes_view(request):
     return render(request, 'trilhas/inscricoes.html', {
         'form': form,
         'inscricoes': inscricoes,
+    })
+
+
+def _quantos(numero, palavra):
+    return f'{numero} {palavra}{"" if numero == 1 else "s"}'
+
+
+@papel_requerido(Usuario.Papel.IS)
+def inscricoes_lote_view(request):
+    """INS-10 (spec 3.8): inscreve vários empreendimentos numa trilha e conta os ignorados (A-19)."""
+    form = InscricaoLoteForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        try:
+            inscritos, ignorados = regras.inscrever_em_lote(
+                form.cleaned_data['trilha'], form.cleaned_data['empreendimentos'], request.user,
+            )
+        except RegraViolada as erro:
+            messages.error(request, str(erro))
+        else:
+            messages.success(
+                request,
+                f'{_quantos(len(inscritos), "inscrito")}, {_quantos(len(ignorados), "ignorado")} '
+                f'na trilha "{form.cleaned_data["trilha"]}".',
+            )
+        return redirect('trilhas:inscricoes_lote')
+
+    marcados = {str(valor) for valor in form['empreendimentos'].value() or []}
+    return render(request, 'trilhas/inscricoes_lote.html', {
+        'form': form,
+        # A tela lista só os ativos (A-11 da F2); o campo aceita todos (plano, seção 5).
+        'ativos': Empreendimento.objects.filter(desativado_em__isnull=True).order_by('nome'),
+        'marcados': marcados,
     })
 
 

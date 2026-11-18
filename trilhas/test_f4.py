@@ -474,9 +474,11 @@ class EtapasTests(TestCase):
         self.assertEqual(regras.etapa_atual(self.empreendimento), Trilha.Etapa.INCUBACAO)
 
     def test_rotas_de_etapa_e_lote_negam_outros_papeis(self):
-        """Rotas de etapa (o lote entra na T7): só a IS, em GET e em POST."""
+        """Rotas de etapa e de lote (INS-10): só a IS, em GET e em POST."""
         publicar_etapas()
         antes = self.retrato()
+        personalizada = Trilha.objects.get(titulo='Precificação')
+        lote = reverse('trilhas:inscricoes_lote')
         for papel in (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDEDOR, Usuario.Papel.ADMIN):
             usuario = Usuario.objects.create_user(f'{papel}@ufsm.br', papel, 'senha-forte-123',
                                                   papel=papel)
@@ -485,13 +487,20 @@ class EtapasTests(TestCase):
                 self.assertEqual(self.client.get(self.url()).status_code, 403)
                 self.assertEqual(self.avancar(Trilha.Etapa.PRE_INCUBACAO).status_code, 403)
                 self.assertEqual(self.definir(Trilha.Etapa.INCUBACAO).status_code, 403)
+                self.assertEqual(self.client.get(lote).status_code, 403)
+                resposta = self.client.post(lote, {'trilha': personalizada.pk,
+                                                   'empreendimentos': [self.empreendimento.pk]})
+                self.assertEqual(resposta.status_code, 403)
                 for funcao, argumentos in (
                     (regras.avancar_etapa, (usuario, Trilha.Etapa.PRE_INCUBACAO)),
                     (regras.definir_etapa, (Trilha.Etapa.INCUBACAO, usuario)),
                 ):
                     with self.assertRaises(PermissionDenied):
                         funcao(self.empreendimento, *argumentos)
+                with self.assertRaises(PermissionDenied):
+                    regras.inscrever_em_lote(personalizada, [self.empreendimento], usuario)
         self.assertEqual(self.retrato(), antes)
+        self.assertFalse(personalizada.inscricoes.exists())
 
         self.client.force_login(self.is_user)
         self.assertEqual(self.client.get(self.url('_avancar')).status_code, 405)
@@ -512,6 +521,80 @@ class EtapasTests(TestCase):
         self.pre.refresh_from_db()
         self.assertEqual(self.pre.status, Inscricao.Status.CONCLUIDA)
         self.assertEqual(self.em_andamento().get().trilha.etapa, Trilha.Etapa.INCUBACAO)
+
+
+class InscricaoEmLoteTests(TestCase):
+    """INS-10 (spec 3.8): inscrição em lote pela IS (T7)."""
+
+    def setUp(self):
+        self.ja_inscrito, self.trilha = criar_par()
+        self.is_user = Usuario.objects.create_user('is@ufsm.br', 'IS', 'senha-forte-123',
+                                                   papel=Usuario.Papel.IS)
+        dono = Usuario.objects.create_user('ana@horta.com', 'Ana', 'senha-forte-123',
+                                           papel=Usuario.Papel.EMPREENDEDOR)
+        self.novo = Empreendimento.objects.create(nome='Horta', tipo='Agricultura',
+                                                  representante=dono)
+        self.desativado = Empreendimento.objects.create(nome='Brechó', tipo='Moda',
+                                                        representante=dono,
+                                                        desativado_em=timezone.now())
+        regras.inscrever(self.ja_inscrito, self.trilha, self.is_user)
+        self.url = reverse('trilhas:inscricoes_lote')
+        self.client.force_login(self.is_user)
+
+    def postar(self, *empreendimentos, trilha=None):
+        return self.client.post(self.url, {
+            'trilha': (trilha or self.trilha).pk,
+            'empreendimentos': [e.pk for e in empreendimentos],
+        }, follow=True)
+
+    def test_a19_lote_inscreve_um_e_ignora_dois(self):
+        pagina = self.client.get(self.url)
+        self.assertContains(pagina, 'Horta')
+        self.assertNotContains(pagina, 'Brechó')  # a tela lista só os ativos
+
+        # O desativado vem forjado pelo POST: é ignorado, sem invalidar o lote.
+        resposta = self.postar(self.ja_inscrito, self.novo, self.desativado)
+        self.assertContains(resposta, '1 inscrito, 2 ignorados')
+
+        inscricao = self.trilha.inscricoes.get(empreendimento=self.novo)
+        self.assertEqual(inscricao.status, Inscricao.Status.ATIVA)
+        self.assertEqual(inscricao.inscrito_por, self.is_user)
+        self.assertEqual(self.trilha.inscricoes.filter(empreendimento=self.ja_inscrito).count(), 1)
+        self.assertFalse(self.trilha.inscricoes.filter(empreendimento=self.desativado).exists())
+
+    def test_lote_aceita_quem_concluiu_e_ignora_pausado(self):
+        """3.8.2 e 3.1.3: só ativa e pausada contam como já inscrito."""
+        inscricao = self.trilha.inscricoes.get(empreendimento=self.ja_inscrito)
+        regras.alterar_status(inscricao, self.is_user, 'pausar')
+        inscritos, ignorados = regras.inscrever_em_lote(
+            self.trilha, [self.ja_inscrito, self.novo], self.is_user)
+        self.assertEqual((len(inscritos), ignorados), (1, [self.ja_inscrito]))
+
+        regras.alterar_status(inscricao, self.is_user, 'cancelar')
+        regras.alterar_status(inscritos[0], self.is_user, 'concluir')
+        inscritos, ignorados = regras.inscrever_em_lote(
+            self.trilha, [self.ja_inscrito, self.novo], self.is_user)
+        self.assertEqual((len(inscritos), len(ignorados)), (2, 0))
+
+    def test_lote_so_em_trilha_personalizada_publicada(self):
+        """3.8.1: trilha de etapa ou em rascunho é recusada e ninguém é inscrito."""
+        publicar_etapas()
+        rascunho = Trilha.objects.create(titulo='Rascunho', usuario_criador=self.is_user)
+        for trilha in (Trilha.objects.get(etapa=Trilha.Etapa.INCUBACAO), rascunho):
+            with self.subTest(trilha=trilha.titulo):
+                resposta = self.postar(self.novo, trilha=trilha)
+                self.assertTrue(resposta.context['form'].has_error('trilha', 'invalid_choice'))
+                with self.assertRaises(RegraViolada):
+                    regras.inscrever_em_lote(trilha, [self.novo], self.is_user)
+                self.assertFalse(trilha.inscricoes.filter(empreendimento=self.novo).exists())
+
+    def test_lote_sem_empreendimento_marcado_e_recusado(self):
+        resposta = self.postar()
+        self.assertTrue(resposta.context['form'].has_error('empreendimentos', 'required'))
+        self.assertEqual(self.trilha.inscricoes.count(), 1)
+
+    def test_tela_de_inscricoes_leva_ao_lote(self):
+        self.assertContains(self.client.get(reverse('trilhas:inscricoes')), self.url)
 
 
 class MigracaoF4Tests(TransactionTestCase):

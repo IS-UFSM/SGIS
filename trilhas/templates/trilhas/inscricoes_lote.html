@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block titulo %}Inscrição em lote — SGIS{% endblock %}
+
+{% block conteudo %}
+{% include 'partials/header.html' %}
+
+<main class="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+  <a href="{% url 'trilhas:inscricoes' %}" class="text-sm font-medium text-brand hover:underline">← Inscrições</a>
+
+  <div class="mt-3">
+    <h1 class="text-2xl font-bold text-slate-900">Inscrição em lote</h1>
+    <p class="text-slate-500 mt-1 text-sm">Escolha uma trilha e marque os empreendimentos. Os que já estão inscritos nela (ativa ou pausada) são ignorados.</p>
+  </div>
+
+  {% for mensagem in messages %}
+    <div class="mt-6 p-4 rounded-xl text-sm {% if mensagem.tags == 'error' %}bg-red-50 border border-red-200 text-red-700{% else %}bg-emerald-50 border border-emerald-200 text-emerald-800{% endif %}" role="status">
+      {{ mensagem }}
+    </div>
+  {% endfor %}
+
+  <form method="post" novalidate class="mt-6 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6">
+    {% csrf_token %}
+
+    <div>
+      <label for="{{ form.trilha.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-1.5">{{ form.trilha.label }}</label>
+      {{ form.trilha }}
+      {% if form.trilha.errors %}
+        <p class="text-xs text-red-600 font-medium mt-1.5">{{ form.trilha.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <fieldset>
+      <legend class="block text-sm font-semibold text-slate-700 mb-1.5">{{ form.empreendimentos.label }}</legend>
+      {% if form.empreendimentos.errors %}
+        <p class="text-xs text-red-600 font-medium mb-2">{{ form.empreendimentos.errors.0 }}</p>
+      {% endif %}
+      <div class="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+        {% for empreendimento in ativos %}
+          <label class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-800 hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" name="{{ form.empreendimentos.html_name }}" value="{{ empreendimento.pk }}"
+                   {% if empreendimento.pk|stringformat:"s" in marcados %}checked{% endif %}
+                   class="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand">
+            {{ empreendimento.nome }}
+          </label>
+        {% empty %}
+          <p class="px-4 py-3 text-sm text-slate-500">Nenhum empreendimento ativo.</p>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <button type="submit" class="py-2.5 px-4 bg-brand hover:bg-brand-hover text-white text-sm font-semibold rounded-lg shadow-md shadow-brand/20 active:scale-[0.99] transition duration-150 cursor-pointer">
+      Inscrever os marcados
+    </button>
+  </form>
+</main>
+{% endblock %}

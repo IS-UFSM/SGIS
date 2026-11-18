@@ -26,6 +26,7 @@ urlpatterns = [
         name='atividade_mover',
     ),
     path('inscricoes/', views.inscricoes_view, name='inscricoes'),
+    path('inscricoes/lote/', views.inscricoes_lote_view, name='inscricoes_lote'),
     re_path(
         r'^inscricoes/(?P<pk>\d+)/(?P<acao>pausar|reativar|cancelar|concluir)/$',
         views.alterar_inscricao_view,
