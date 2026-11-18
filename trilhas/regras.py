@@ -279,6 +279,31 @@ def inscrever(empreendimento, trilha, usuario):
     return _criar_inscricao(empreendimento, trilha, usuario)
 
 
+@transaction.atomic
+def inscrever_em_lote(trilha, empreendimentos, usuario):
+    """INS-10 (spec 3.8): inscreve vários de uma vez numa trilha personalizada publicada.
+
+    Os já inscritos (ativa ou pausada) e os desativados são ignorados, sem invalidar o
+    lote (A-19). Devolve as listas (inscritos, ignorados).
+    """
+    if not e_is(usuario):
+        raise PermissionDenied
+    if not trilhas_inscriviveis().filter(pk=trilha.pk).exists():
+        raise RegraViolada('Escolha uma trilha personalizada publicada.')
+    em_andamento = set(
+        trilha.inscricoes.filter(status__in=STATUS_EM_ANDAMENTO)
+        .values_list('empreendimento_id', flat=True)
+    )
+    inscritos, ignorados = [], []
+    for empreendimento in empreendimentos:
+        if not empreendimento.ativo or empreendimento.pk in em_andamento:
+            ignorados.append(empreendimento)
+            continue
+        inscritos.append(_criar_inscricao(empreendimento, trilha, usuario))
+        em_andamento.add(empreendimento.pk)
+    return inscritos, ignorados
+
+
 # Etapas
 
 def _travar(empreendimento):

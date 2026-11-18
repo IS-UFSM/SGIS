@@ -178,6 +178,32 @@ class InscricaoForm(forms.ModelForm):
         return cleaned
 
 
+class InscricaoLoteForm(forms.Form):
+    """INS-10 (spec 3.8): uma trilha personalizada publicada e vários empreendimentos.
+
+    A tela lista só os ativos, mas o campo aceita todos: um desativado enviado pelo POST,
+    ou desativado depois de a tela abrir, é ignorado e contado, sem invalidar o lote
+    (plano, seção 5).
+    """
+
+    trilha = forms.ModelChoiceField(
+        label='Trilha',
+        queryset=Trilha.objects.none(),
+        widget=forms.Select(attrs={'class': CLASSES_INPUT}),
+        error_messages={'invalid_choice': 'Escolha uma trilha personalizada publicada.'},
+    )
+    empreendimentos = forms.ModelMultipleChoiceField(
+        label='Empreendimentos',
+        queryset=Empreendimento.objects.order_by('nome'),
+        widget=forms.CheckboxSelectMultiple,
+        error_messages={'required': 'Marque pelo menos um empreendimento.'},
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['trilha'].queryset = regras.trilhas_inscriviveis().order_by('titulo')
+
+
 class DefinirEtapaForm(forms.Form):
     """3.5a: a IS escolhe a etapa de um empreendimento sem etapa ativa ou pausada."""
 
