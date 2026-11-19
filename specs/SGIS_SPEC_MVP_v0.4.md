@@ -1,6 +1,6 @@
 # SGIS — Especificação do MVP
 
-**Versão:** 0.4.5 (revisão após reunião com a IS)
+**Versão:** 0.5.0 (revisão após a segunda reunião com a IS; ver seção 14)
 
 **Substitui:** `_arquivo/SGIS_SPEC_MVP.md` (v0.3) e, para o MVP, o `_arquivo/MODELAGEM_BANCO.md`. A `_arquivo/SGIS_SPEC_COMPLETA.md` continua como registro da visão inicial, mas vários módulos dela foram descartados (ver seção 12).
 
@@ -21,13 +21,17 @@ Um sistema fechado em que a Incubadora Social (IS) organiza as etapas da incuba�
 | Termo | Significado |
 |---|---|
 | **Empreendimento** | O negócio incubado (MEI, associação, coletivo…). |
-| **Empreendedor** | A pessoa que faz login em nome do empreendimento. É o **representante** dele. |
+| **Empreendedor** | Papel da **conta do empreendimento**: um login único, compartilhado pelas pessoas do empreendimento. A conta é o **representante** do empreendimento. Nas telas, aparece como "conta do empreendimento". |
+| **Contato** | Pessoa do empreendimento registrada para contato (nome, função, e-mail, telefone). Não faz login. |
 | **Etapa** | Fase da incubação: **Pré-incubação → Incubação → Desincubação**. [Confirmar o nome da última etapa] |
 | **Trilha de etapa** | Trilha criada pela IS, comum a todos os empreendimentos daquela etapa. Existe uma por etapa. |
 | **Trilha personalizada** | Trilha criada por um professor ou pela IS, sem etapa, em que só alguns empreendimentos são inscritos. |
 | **Dono da trilha** | Quem a criou. É quem edita e quem valida as atividades. |
 | **Inscrição** | Decisão da IS de colocar um empreendimento numa trilha. |
 | **Execução** | O andamento de uma atividade para um empreendimento inscrito. |
+| **Liberação** | Ato do dono da trilha de tornar visível, para uma inscrição, uma atividade que não era visível desde a inscrição. |
+| **Desistência** | Cancelamento de uma inscrição em trilha personalizada feito pelo próprio empreendimento. |
+| **Banner** | Imagem com título e link opcional, exibida em carrossel no Início dos papéis a que se destina. |
 | **Professor que atende** | Professor dono de alguma trilha em que o empreendimento está ou esteve inscrito. |
 | **Prontuário** | Notas no perfil do empreendimento, para registrar o que já foi trabalhado. |
 | **Nível por eixo** | Nível atual (N1, N2, N3) do empreendimento em cada um dos 5 eixos, definido pela IS. |
@@ -38,9 +42,9 @@ Um sistema fechado em que a Incubadora Social (IS) organiza as etapas da incuba�
 
 | Papel | No MVP |
 |---|---|
-| **Empreendedor** | Vê o perfil do próprio empreendimento, as trilhas em que ele está inscrito, marca atividades como concluídas, vê devoluções, o prontuário e os níveis por eixo. |
-| **Professor** | Cria trilhas personalizadas, valida ou devolve atividades delas, vê os empreendimentos que atende, com as trilhas e o status em cada uma, e escreve no prontuário deles. |
-| **IS** | Cria contas de professores e empreendedores, mantém as trilhas de etapa, cria trilhas personalizadas, inscreve empreendimentos, avança etapas, valida as trilhas de etapa e as suas personalizadas, define níveis por eixo, escreve no prontuário e vê as estatísticas. |
+| **Empreendedor** | Vê o perfil do próprio empreendimento, as trilhas em que ele está inscrito e as atividades já liberadas, marca atividades como concluídas, vê devoluções, o prontuário e os níveis por eixo, e desiste de trilhas personalizadas. |
+| **Professor** | Cria trilhas personalizadas, libera, valida ou devolve atividades delas, vê os empreendimentos que atende, com as trilhas e o status em cada uma, e escreve no prontuário deles. Não cancela inscrições. |
+| **IS** | Cria contas de professores e empreendedores, mantém as trilhas de etapa, cria trilhas personalizadas, inscreve empreendimentos, avança etapas, cancela inscrições, libera e valida atividades nas trilhas de que é dona, define níveis por eixo, escreve no prontuário, mantém os banners e vê as estatísticas. |
 | **Admin** | Gerencia contas de todos os papéis, inclusive IS e admin. Não acessa dados de negócio. |
 
 Cada usuário tem um único papel.
@@ -85,9 +89,10 @@ Cada usuário tem um único papel.
 | ID | Requisito | Prior. |
 |---|---|---|
 | EMP-01 | A IS cadastra e edita o empreendimento: nome, tipo (MEI, Associação, Coletivo, Outro), descrição, e-mail e telefone de contato. | M |
-| EMP-02 | Cada empreendimento tem **um único representante** (empreendedor). | M |
+| EMP-02 | Cada empreendimento tem **uma única conta** (papel empreendedor), o seu representante, compartilhada pelas pessoas do empreendimento. | M |
+| EMP-07 | **Contatos:** o empreendimento tem uma lista de pessoas para contato, cada uma com nome, função, e-mail e telefone; uma delas é marcada como **principal**. Contatos não fazem login. Quem edita a lista: [Confirmar] (ver seção 13). | M |
 | EMP-03 | A IS lista os empreendimentos com filtros: ativos, desativados e por etapa atual. | M |
-| EMP-04 | **Perfil do empreendimento:** dados, etapa atual, níveis por eixo, trilhas em que está inscrito (com status) e prontuário. | M |
+| EMP-04 | **Perfil do empreendimento:** dados, contatos, etapa atual, níveis por eixo, trilhas em que está inscrito (com status) e prontuário. | M |
 | EMP-05 | Quem vê o perfil: a IS (todos), os professores que o atendem e o próprio representante. | M |
 | EMP-06 | A IS desativa um empreendimento sem apagar histórico. O representante perde o acesso enquanto o empreendimento estiver desativado. | S |
 
@@ -98,7 +103,7 @@ Cada usuário tem um único papel.
 | TRL-01 | Há dois tipos de trilha: **de etapa** (da IS, exatamente uma por etapa, criadas pelo sistema) e **personalizada** (criada por um professor ou pela IS). | M |
 | TRL-02 | O professor e a IS criam trilhas personalizadas: título, descrição e atividades. Uma trilha personalizada da IS não é trilha de etapa. | M |
 | TRL-03 | A IS cria e mantém a trilha de cada etapa: título, descrição e atividades. | M |
-| TRL-04 | **Atividade:** título, descrição, tipo (**Leitura, Link, Tarefa**), endereço (obrigatório para Link), obrigatória (sim/não), exige validação (padrão **sim**), prazo fixo **ou** em dias após a inscrição, e ordem. | M |
+| TRL-04 | **Atividade:** título, descrição em **texto formatado** (TXT-01), obrigatória (sim/não), exige validação (padrão **sim**), **visível desde a inscrição** (sim/não), prazo fixo **ou** em dias após a atividade ficar disponível (EXE-02), e ordem. Não há tipo de atividade nem campo de endereço: links vão dentro da descrição. | M |
 | TRL-05 | **Estados da trilha:** rascunho → publicada → arquivada. Publicar exige pelo menos uma atividade ativa. Rascunho não aparece para empreendimentos. | M |
 | TRL-06 | Editar trilha publicada: ajustar textos e acrescentar atividades ao final. Atividade com progresso só pode ser arquivada. Trilha com progresso nunca é apagada. | M |
 | TRL-07 | O dono edita a trilha. A IS também tem plenos poderes de edição sobre as trilhas personalizadas de professores (editar, publicar, arquivar), com uma confirmação antes de cada alteração. O dono continua sendo o professor. | M |
@@ -115,7 +120,8 @@ Cada usuário tem um único papel.
 | INS-03 | **Avançar etapa:** tela própria em que a IS move o empreendimento para a etapa seguinte. A inscrição na trilha da etapa atual vira **Concluída** e é criada a inscrição na trilha da próxima etapa. | M |
 | INS-04 | O empreendimento está em **uma única etapa por vez**: no máximo uma inscrição ativa ou pausada em trilha de etapa. | M |
 | INS-05 | A **etapa atual** é a trilha de etapa com inscrição ativa ou pausada. Não é guardada em campo próprio. | M |
-| INS-06 | Status da inscrição: **Ativa, Pausada, Concluída, Cancelada**. A IS pausa, reativa ou cancela, com motivo opcional. O histórico é preservado. | M |
+| INS-06 | Status da inscrição: **Ativa, Pausada, Concluída, Cancelada**. A IS pausa, reativa ou cancela qualquer inscrição, com motivo opcional. O professor não cancela inscrições. O histórico é preservado. | M |
+| INS-12 | **Desistência:** o empreendedor cancela a inscrição do próprio empreendimento numa trilha **personalizada**, ativa ou pausada [ASSUMIDO: também pausada], com confirmação e sem motivo. Não desiste de trilha de etapa. A inscrição fica *Cancelada*, e a tela distingue "Desistência" de "Cancelada pela IS". | M |
 | INS-07 | Não pode haver duas inscrições ativas ou pausadas do mesmo empreendimento na mesma trilha. | M |
 | INS-08 | Com a inscrição pausada, o empreendedor vê a trilha, mas não marca atividades. Os prazos continuam correndo. | M |
 | INS-09 | O empreendedor vê só as inscrições do próprio empreendimento. | M |
@@ -126,27 +132,30 @@ Cada usuário tem um único papel.
 
 | ID | Requisito | Prior. |
 |---|---|---|
-| EXE-01 | Ao criar uma inscrição, o sistema cria uma **execução** para cada atividade ativa da trilha. Ao acrescentar uma atividade a uma trilha publicada, cria execuções para as inscrições ativas e pausadas. | M |
-| EXE-02 | **Prazo da execução:** o prazo fixo da atividade, ou os dias após a **data mais recente** entre a inscrição e a criação da atividade. | M |
+| EXE-01 | Ao criar uma inscrição, o sistema cria uma **execução** para cada atividade ativa da trilha. Ao acrescentar uma atividade a uma trilha publicada, cria execuções para as inscrições ativas e pausadas. A execução nasce **liberada** se a atividade é visível desde a inscrição; senão, nasce **oculta** (EXE-12). | M |
+| EXE-02 | **Prazo da execução:** o prazo fixo da atividade, ou os dias após a data em que a atividade ficou **disponível** para a inscrição: a data mais recente entre a inscrição e a criação da atividade, ou, se ela nasceu oculta, a data da **liberação**. Execução oculta não tem prazo. | M |
 | EXE-03 | Status da execução: **Pendente, Aguardando validação, Devolvida, Concluída**. **Atrasada** é calculada (não concluída e prazo vencido), nunca gravada. | M |
 | EXE-04 | O empreendedor **marca como concluída**, com confirmação. Se a atividade exige validação, vai para *Aguardando validação*; senão, para *Concluída*. | M |
 | EXE-05 | O empreendedor desfaz a marcação enquanto ela aguarda validação. | S |
 | EXE-06 | **O dono da trilha valida ou devolve.** A devolução exige comentário, que o empreendedor vê; ele pode marcar de novo. | M |
 | EXE-07 | O dono reabre uma atividade concluída, informando o motivo. Ela volta a *Pendente*. | S |
-| EXE-08 | **Histórico** de cada execução (marcada, desfeita, validada, devolvida, reaberta), com autor, data e comentário. Nunca é apagado. | M |
-| EXE-09 | **Progresso** da inscrição = atividades obrigatórias concluídas ÷ obrigatórias. *Aguardando validação* ainda não conta. Atividades arquivadas saem do cálculo e continuam no histórico. | M |
-| EXE-10 | **Minhas atividades** (empreendedor): lista de todas as execuções, com filtros Pendentes, Devolvidas, Concluídas e Atrasadas, ordenada por prazo. | M |
+| EXE-08 | **Histórico** de cada execução (liberada, marcada, desfeita, validada, devolvida, reaberta), com autor, data e comentário. Nunca é apagado. | M |
+| EXE-09 | **Progresso** da inscrição = atividades obrigatórias concluídas ÷ obrigatórias. *Aguardando validação* ainda não conta. Atividades arquivadas e execuções ocultas saem do cálculo; as arquivadas continuam no histórico. | M |
+| EXE-10 | **Minhas atividades** (empreendedor): lista das execuções liberadas, com filtros Pendentes, Devolvidas, Concluídas e Atrasadas, ordenada por prazo. | M |
 | EXE-11 | **Fila de validação** do dono (professor ou IS): execuções aguardando validação nas suas trilhas, da mais antiga para a mais nova. | M |
+| EXE-12 | **Liberação por empreendimento:** a execução oculta não aparece para o empreendimento (nem o título) e não pode ser marcada. **Só o dono da trilha** a libera, para uma inscrição de cada vez, quando achar adequado; a IS não libera atividades das trilhas de professores. Uma execução liberada não volta a ficar oculta [ASSUMIDO]. | M |
 
 **Transições:**
 
 | Ação | Quem | De | Para | Condição |
 |---|---|---|---|---|
-| Marcar | Empreendedor | Pendente, Devolvida | Aguardando validação (ou Concluída) | Inscrição ativa |
+| Marcar | Empreendedor | Pendente, Devolvida | Aguardando validação (ou Concluída) | Inscrição ativa e execução liberada |
 | Desfazer | Empreendedor | Aguardando validação | Pendente | — |
 | Validar | Dono da trilha | Aguardando validação | Concluída | — |
 | Devolver | Dono da trilha | Aguardando validação | Devolvida | Comentário obrigatório |
 | Reabrir | Dono da trilha | Concluída | Pendente | Motivo obrigatório |
+
+A **liberação** (EXE-12) não muda o status: a execução continua *Pendente* e passa de oculta a liberada.
 
 ### F6 · Visão do professor
 
@@ -183,6 +192,16 @@ Cada usuário tem um único papel.
 | EST-02 | Quadro por professor: trilhas, empreendimentos atendidos, atividades aguardando validação. | S |
 | EST-03 | Gráficos. | C |
 
+### F10 · Banners
+
+| ID | Requisito | Prior. |
+|---|---|---|
+| BAN-01 | A IS cadastra e edita banners: **imagem** (JPG ou PNG, até 1 MB), título, texto alternativo (obrigatório), link opcional, **públicos** (um ou mais entre empreendedor, professor e IS) e ordem. | M |
+| BAN-02 | A imagem é enviada pela IS na interface e guardada **no banco de dados**, para não depender do disco do servidor, que é apagado a cada implantação. | M |
+| BAN-03 | O **Início** de cada papel mostra, depois do login, um **carrossel horizontal** com os banners ativos destinados a esse papel, na ordem definida. Não há data de início nem de fim: o banner fica no ar até a IS desativá-lo. | M |
+| BAN-04 | A IS desativa e reativa banners. Banner desativado não aparece no carrossel. | M |
+| BAN-05 | O carrossel é acessível: tem botões de anterior, próximo e pausa, funciona pelo teclado, e a troca automática para quando o usuário interage. | M |
+
 ---
 
 ## 6. Permissões
@@ -194,20 +213,27 @@ Cada usuário tem um único papel.
 | Empreendimentos | ver perfil | o próprio | os que atende | todos | — |
 | Empreendimentos | criar, junto com o empreendedor | — | — | ✔ | ✔ |
 | Empreendimentos | editar, desativar | — | — | ✔ | — |
+| Contatos do empreendimento | ver | o próprio | dos que atende | todos | — |
+| Contatos do empreendimento | criar, editar | [Confirmar] | — | ✔ | — |
 | Trilhas de etapa | criar, editar, publicar, arquivar | — | — | ✔ | — |
 | Trilhas de etapa | ver | as inscritas (atual e anteriores) | ✔ | ✔ | — |
 | Trilhas personalizadas | criar, editar, publicar, arquivar | — | as suas | as suas | — |
 | Trilhas personalizadas de professores | editar, publicar, arquivar | — | — | ✔ (com confirmação) | — |
 | Trilhas personalizadas | ver | as inscritas | as suas + as outras nos empreendimentos que atende | todas | — |
 | Inscrição | criar, pausar, reativar, cancelar, avançar etapa | — | — | ✔ | — |
+| Inscrição | desistir | as próprias, só em trilha personalizada | — | — | — |
 | Inscrição | ver | as próprias | dos empreendimentos que atende | todas | — |
-| Atividade | marcar, desfazer | ✔ (as próprias) | — | — | — |
+| Atividade | ver | as liberadas, nas próprias inscrições | ✔ (todas, nas inscrições que vê) | ✔ | — |
+| Atividade | liberar | — | nas suas trilhas | nas trilhas de etapa e nas suas personalizadas | — |
+| Atividade | marcar, desfazer | ✔ (as próprias, liberadas) | — | — | — |
 | Atividade | validar, devolver, reabrir | — | nas suas trilhas | nas trilhas de etapa e nas suas personalizadas | — |
 | Prontuário | escrever | — | dos que atende | ✔ | — |
 | Prontuário | ler | o próprio | dos que atende | todos | — |
 | Nível por eixo | definir | — | — | ✔ | — |
 | Nível por eixo | ver | o próprio | dos que atende | todos | — |
 | Estatísticas | ver | — | — | ✔ | — |
+| Banners | criar, editar, desativar | — | — | ✔ | — |
+| Banners | ver no Início | os destinados ao papel | os destinados ao papel | os destinados ao papel | — |
 
 Qualquer acesso fora desta tabela, por lista, busca ou endereço direto, é negado (403) e nenhum dado é exibido.
 
@@ -217,8 +243,8 @@ Qualquer acesso fora desta tabela, por lista, busca ou endereço direto, é nega
 
 | ID | Regra |
 |---|---|
-| RN-01 | Um usuário tem um único papel. O empreendedor é representante de exatamente um empreendimento; os demais papéis não têm vínculo com empreendimento. |
-| RN-02 | Um empreendimento tem um único representante. |
+| RN-01 | Um usuário tem um único papel. A conta de papel empreendedor é representante de exatamente um empreendimento; os demais papéis não têm vínculo com empreendimento. |
+| RN-02 | Um empreendimento tem uma única conta (representante), compartilhada pelas suas pessoas. As pessoas ficam registradas como contatos, sem login. |
 | RN-03 | O professor se relaciona com um empreendimento **apenas por meio das trilhas dele**: atende quem está ou esteve inscrito nelas. Não há supervisão nem orientador fixo. |
 | RN-04 | Quem valida é sempre o **dono da trilha**: a IS nas trilhas de etapa e nas personalizadas que criou, o professor nas dele. |
 | RN-05 | A atividade só é marcada pelo empreendedor. Nenhum outro papel marca por ele. |
@@ -233,6 +259,9 @@ Qualquer acesso fora desta tabela, por lista, busca ou endereço direto, é nega
 | RN-14 | Toda rota exige login, salvo a lista fechada da seção 4. |
 | RN-15 | Dados fictícios nunca vão para produção. |
 | RN-16 | O admin não acessa dados de negócio, exceto para informar os dados do empreendimento ao criar um empreendedor. |
+| RN-17 | Só o dono da trilha libera atividades ocultas, uma inscrição por vez. Atividade oculta não é vista, não é marcada, não tem prazo e não conta no progresso. |
+| RN-18 | O empreendedor só desiste de inscrição em trilha personalizada. O professor não cancela inscrições. |
+| RN-19 | Todo texto formatado é limpo no servidor antes de ser gravado e exibido: só as marcações da lista de TXT-01 sobrevivem. |
 
 ---
 
@@ -243,18 +272,21 @@ Substitui o `MODELAGEM_BANCO.md` para o escopo do MVP. Campos de auditoria (`cri
 | Entidade | Campos principais | Observações |
 |---|---|---|
 | **Usuário** | nome, e-mail (único, minúsculas), senha (hash), papel, ativo, deve_trocar_senha, último acesso, criado_em | Papéis: `admin`, `is`, `professor`, `empreendedor` |
-| **Empreendimento** | nome, tipo, descrição, e-mail e telefone de contato, representante → Usuário, desativado_em | Nulo em `desativado_em` = ativo |
+| **Empreendimento** | nome, tipo, descrição (texto formatado), e-mail e telefone de contato, representante → Usuário, desativado_em | Nulo em `desativado_em` = ativo. E-mail e telefone continuam como contato geral do empreendimento |
+| **Contato** | empreendimento, nome, função, e-mail, telefone, principal | No máximo um principal por empreendimento |
 | **Trilha** | título, descrição, etapa (vazio, `pre_incubacao`, `incubacao`, `desincubacao`), dono → Usuário, status, publicada_em, arquivada_em | Etapa vazia = trilha personalizada. No máximo uma trilha não arquivada por etapa |
-| **Atividade da trilha** | trilha, título, descrição, tipo, endereço, ordem, obrigatória, exige_validacao, prazo_fixo, dias_apos_inscricao, criada_em, arquivada_em | Um dos dois prazos, ou nenhum |
-| **Inscrição** | empreendimento, trilha, status, inscrito_por (vazio = automática), inscrito_em, pausado_em, reativado_em, cancelado_em, concluido_em, motivo | Única por par entre as ativas e pausadas |
-| **Execução da atividade** | inscrição, atividade, status, prazo, concluida_em, atualizada_em | Única por par inscrição–atividade |
+| **Atividade da trilha** | trilha, título, descrição (texto formatado), ordem, obrigatória, exige_validacao, visivel_desde_inscricao, prazo_fixo, dias_apos_inscricao, criada_em, arquivada_em | Um dos dois prazos, ou nenhum. Os dias contam a partir da disponibilidade (EXE-02). Sem `tipo` e sem `endereço`: na migração, o endereço existente passa para o fim da descrição |
+| **Inscrição** | empreendimento, trilha, status, inscrito_por (vazio = automática), inscrito_em, pausado_em, reativado_em, cancelado_em, cancelado_por → Usuário, concluido_em, motivo | Única por par entre as ativas e pausadas. `cancelado_por` distingue a desistência (INS-12) do cancelamento pela IS |
+| **Execução da atividade** | inscrição, atividade, status, liberada_em, prazo, concluida_em, atualizada_em | Única por par inscrição–atividade. Vazio em `liberada_em` = oculta |
 | **Histórico da atividade** | execução, ação, autor, comentário, criado_em | Só inserção |
 | **Nota do prontuário** | empreendimento, autor, texto, criado_em | Só inserção |
 | **Nível por eixo** | empreendimento, eixo, nível | Único por par empreendimento–eixo. Eixo é uma lista fixa |
+| **Banner** | título, texto_alternativo, imagem (binária), tipo_da_imagem, link, públicos, ordem, ativo, criado_em | Imagem guardada no banco (BAN-02). Públicos: um ou mais papéis entre empreendedor, professor e IS |
 
 **Relacionamentos:**
 ```text
 USUARIO 1 ─── 0..1 EMPREENDIMENTO            (representante)
+EMPREENDIMENTO 1 ─── N CONTATO
 USUARIO 1 ─── N TRILHA                       (dono)
 TRILHA 1 ─── N ATIVIDADE_TRILHA
 EMPREENDIMENTO 1 ─── N INSCRICAO N ─── 1 TRILHA
@@ -280,7 +312,7 @@ Cada jornada é um teste de ponta a ponta.
 > *Dado* um empreendimento na pré-incubação, *quando* a IS avança a etapa, *então* a inscrição na pré-incubação fica *Concluída*, ele é inscrito na trilha de incubação, e não fica em duas etapas ao mesmo tempo.
 
 **J-4 · Trilha personalizada e inscrição**
-> *Dado* uma trilha personalizada publicada, *quando* a IS inscreve o empreendimento A, *então* ela aparece para A com todas as atividades pendentes e **não** aparece para B. *Dado* uma trilha em rascunho, *então* nenhum empreendimento a vê e a IS não consegue inscrever ninguém nela.
+> *Dado* uma trilha personalizada publicada, *quando* a IS inscreve o empreendimento A, *então* ela aparece para A com as atividades visíveis desde a inscrição, todas pendentes, e **não** aparece para B. *Dado* uma trilha em rascunho, *então* nenhum empreendimento a vê e a IS não consegue inscrever ninguém nela.
 
 **J-5 · Execução e validação**
 > *Dado* uma atividade que exige validação, *quando* o empreendedor a marca, *então* ela fica *Aguardando validação* e o progresso não muda. *Quando* o dono a devolve sem comentário, *então* o sistema recusa; com comentário, o empreendedor o vê. *Quando* o dono a valida, *então* ela vira *Concluída*, o progresso é recalculado e o histórico mostra as três ações. *Dado* um professor que não é dono da trilha, *quando* tenta validar uma atividade dela, *então* o acesso é negado.
@@ -294,6 +326,18 @@ Cada jornada é um teste de ponta a ponta.
 **J-8 · Gestão de contas**
 > *Dado* um usuário com sessão aberta, *quando* a IS (ou o admin) o desativa, *então* a sessão é encerrada e ele não entra mais. Ninguém desativa a última conta ativa de admin.
 
+**J-9 · Liberação de atividades**
+> *Dado* uma trilha com quatro atividades, das quais só as duas primeiras são visíveis desde a inscrição, *quando* a IS inscreve A e B, *então* os dois veem só as duas primeiras, e o progresso considera só elas. *Quando* o dono libera a terceira para A, *então* A a vê com prazo contado da liberação, e B continua sem vê-la. *Dado* um professor que não é dono da trilha, ou a IS numa trilha de professor, *quando* tenta liberar, *então* o acesso é negado. *Dado* uma execução oculta, *quando* o empreendedor tenta marcá-la por endereço direto, *então* o sistema recusa.
+
+**J-10 · Desistência**
+> *Dado* A inscrito numa trilha personalizada, *quando* o empreendedor de A desiste, *então* a inscrição fica *Cancelada*, registrada como desistência. *Dado* A na trilha de etapa, *então* a opção de desistir não existe e uma tentativa forjada é recusada. *Dado* um professor, *quando* tenta cancelar uma inscrição, *então* o acesso é negado.
+
+**J-11 · Banners**
+> *Dado* um banner ativo destinado só a empreendedores, *quando* um empreendedor abre o Início, *então* o banner aparece no carrossel; *quando* um professor abre o Início, *então* não aparece. *Quando* a IS desativa o banner, *então* ele some do carrossel. *Dado* um professor ou empreendedor, *quando* tenta cadastrar um banner, *então* o acesso é negado.
+
+**J-12 · Texto formatado**
+> *Dado* o dono de uma trilha, *quando* escreve na descrição de uma atividade um texto com negrito e um link, *então* o empreendedor vê o negrito e o link clicável. *Quando* o texto enviado contém um `<script>` ou um atributo `onclick`, *então* essas partes são removidas antes de gravar.
+
 ---
 
 ## 10. Telas
@@ -301,9 +345,9 @@ Cada jornada é um teste de ponta a ponta.
 | Área | Telas |
 |---|---|
 | **Todos** | Login (com a orientação de "esqueci a senha") · Troca de senha obrigatória · Minha conta · Erros 403 e 404 |
-| **Empreendedor** | Início (próximas atividades e devoluções) · Meu empreendimento (perfil) · Minhas trilhas · Detalhe da trilha · Minhas atividades |
-| **Professor** | Painel (empreendimentos × trilhas × status) · Fila de validação · Perfil do empreendimento · Minhas trilhas · Editor de trilha |
-| **IS** | Estatísticas · Contas · Empreendimentos (lista e cadastro) · Perfil do empreendimento (inscrições, níveis, prontuário) · Avançar etapa · Trilhas de etapa (editor) · Todas as trilhas e inscrição · Fila de validação |
+| **Empreendedor** | Início (banners, próximas atividades e devoluções) · Meu empreendimento (perfil e contatos) · Minhas trilhas (com "desistir" nas personalizadas) · Detalhe da trilha · Minhas atividades |
+| **Professor** | Início (banners) · Painel (empreendimentos × trilhas × status) · Fila de validação · Perfil do empreendimento · Minhas trilhas · Editor de trilha · Liberação de atividades por inscrição |
+| **IS** | Início (banners) · Estatísticas · Contas · Empreendimentos (lista e cadastro) · Perfil do empreendimento (contatos, inscrições, níveis, prontuário) · Avançar etapa · Trilhas de etapa (editor) · Todas as trilhas e inscrição · Liberação de atividades por inscrição · Fila de validação · Banners |
 | **Admin** | Contas (todas) |
 
 ---
@@ -320,6 +364,7 @@ Cada jornada é um teste de ponta a ponta.
 | RNF-06 | **Desempenho:** telas principais em até 3 s; listas paginadas. | M |
 | RNF-07 | **Idioma:** pt-BR. | M |
 | RNF-08 | **Hospedagem:** serviços gratuitos (Render: web e Postgres free) enquanto o projeto não tiver piloto com dados reais. | M |
+| TXT-01 | **Texto formatado:** todo campo de texto longo editado na interface (descrições de trilha, atividade e empreendimento, notas do prontuário, comentários de devolução, motivos e texto dos banners) usa uma única caixa com **mini editor**: negrito, itálico, lista, link e parágrafo. Só essas marcações são aceitas (RN-19). Links abrem em nova aba. | M |
 
 **Antes de um piloto com dados reais** (fora do MVP acadêmico): banco com backup e restauração testada (o Postgres gratuito do Render expira em 30 dias e não tem backup), termo de privacidade e avaliação de LGPD da hospedagem, e o bloqueio de tentativas de login (ACE-14).
 
@@ -334,7 +379,7 @@ Cada jornada é um teste de ponta a ponta.
 - **Auditoria** completa (quem alterou o quê, campos `*_por`).
 - **Recuperação de senha por e-mail** e **convites** por e-mail.
 - **Histórico dos níveis por eixo.**
-- **Mais de um representante** por empreendimento.
+- **Contas individuais** para cada pessoa do empreendimento (a v0.5 adotou uma conta compartilhada mais contatos).
 - Etapas dentro da trilha; notificações; exportação de relatórios.
 
 ### Descartado (decisão da reunião ou da equipe)
@@ -359,10 +404,25 @@ Cada jornada é um teste de ponta a ponta.
 | 5 | Nível inicial de um empreendimento novo | Vazio ("não avaliado") |
 | 6 | Prazo para a situação *Atenção* | Atividade devolvida há mais de 7 dias |
 | 7 | Desativar empreendimento tira o acesso do representante? | **Decidido** (F2, 7.4): sim, enquanto estiver desativado; a conta do representante continua ativa |
+| 8 | Quem cria e edita os contatos do empreendimento (EMP-07)? | A IS, e também a própria conta do empreendimento |
+| 9 | Arquivamento na trilha: o que o empreendedor e o dono esperam ver (rótulos "feito/realizado" e "remover")? | **A revisar.** Proposta: para o dono, o botão se chama "Remover atividade", mas por baixo continua sendo arquivamento (RN-10) |
+| 10 | O empreendedor pode desistir de uma inscrição pausada? | Sim, como na ativa |
+| 11 | Liberar uma atividade oculta para todos os inscritos de uma vez | Fora por ora; a liberação é por empreendimento. Pode voltar como atalho (S) |
 
 ---
 
-## 14. Mudanças em relação à v0.3
+## 14. Mudanças
+
+### Da v0.4 para a v0.5 (segunda reunião com a IS)
+
+- **Banners** (F10): carrossel no Início, por papel, sem datas, com imagem enviada pela IS e guardada no banco.
+- **Liberação de atividades** (EXE-12, RN-17): a atividade pode nascer oculta; o dono a libera por empreendimento; o prazo em dias conta da liberação; atividade oculta não conta no progresso.
+- **Desistência** (INS-12, RN-18): o empreendedor desiste de trilha personalizada, sem motivo; a inscrição registra quem cancelou (`cancelado_por`). O professor não cancela nada.
+- **Conta do empreendimento** (EMP-02, EMP-07, RN-01, RN-02): uma conta compartilhada por empreendimento mais uma lista de contatos sem login. O código do papel continua `empreendedor`.
+- **Texto formatado** (TXT-01, RN-19): mini editor em todos os campos de texto longo, com HTML limpo no servidor. A atividade perde `tipo` e `endereço`.
+- **Features já aprovadas que precisam de revisão de spec:** F2 (contatos), F3 (atividade sem tipo e endereço, visível desde a inscrição, texto formatado) e F4 (desistência e `cancelado_por`). A F5 nasce já com a liberação.
+
+### Da v0.3 para a v0.4
 
 - **Validação:** sempre pelo dono da trilha (antes: professor supervisor na trilha base, com a IS como exceção).
 - **Trilha base por ciclo → trilha por etapa**, três etapas, sem tabela de ciclo; a etapa atual vem da inscrição; nova tela "avançar etapa".
@@ -391,3 +451,4 @@ Cada jornada é um teste de ponta a ponta.
 | 0.4.3 | 2026-11-04 | Decisão da spec F4 (7.7): a inscrição guarda a data de reativação (`reativado_em`, seção 8). |
 | 0.4.4 | 2026-11-04 | Decisão da spec F0 (7.6): todos os arquivos estáticos são públicos (ACE-00a). |
 | 0.4.5 | 2026-11-04 | Decisão da spec F1 (7.8): o admin informa os dados do empreendimento ao criar um empreendedor (RN-16 e tabela de permissões). |
+| 0.5.0 | 2026-11-19 | Segunda reunião com a IS: banners (F10), liberação de atividades (EXE-12), desistência (INS-12), conta do empreendimento com contatos (EMP-07), texto formatado (TXT-01); atividade sem tipo e endereço (ver seção 14). |
