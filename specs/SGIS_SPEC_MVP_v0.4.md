@@ -196,7 +196,8 @@ A **liberação** (EXE-12) não muda o status: a execução continua *Pendente* 
 
 | ID | Requisito | Prior. |
 |---|---|---|
-| BAN-01 | A IS cadastra e edita banners: **imagem** (JPG ou PNG, até 1 MB), título, texto alternativo (obrigatório), link opcional, **públicos** (um ou mais entre empreendedor, professor e IS) e ordem. | M |
+| BAN-01 | A IS cadastra e edita banners: **imagem** (JPG ou PNG, até 1 MB), título, texto alternativo (obrigatório), link opcional e ordem. | M |
+| BAN-06 | **Público do banner:** cada banner tem uma **flag por tipo de usuário** (mostrar para empreendedores, para professores, para a IS), que a IS marca no cadastro. É obrigatório marcar pelo menos uma. O banner só aparece para os papéis marcados. O admin não vê banners. | M |
 | BAN-02 | A imagem é enviada pela IS na interface e guardada **no banco de dados**, para não depender do disco do servidor, que é apagado a cada implantação. | M |
 | BAN-03 | O **Início** de cada papel mostra, depois do login, um **carrossel horizontal** com os banners ativos destinados a esse papel, na ordem definida. Não há data de início nem de fim: o banner fica no ar até a IS desativá-lo. | M |
 | BAN-04 | A IS desativa e reativa banners. Banner desativado não aparece no carrossel. | M |
@@ -281,7 +282,7 @@ Substitui o `MODELAGEM_BANCO.md` para o escopo do MVP. Campos de auditoria (`cri
 | **Histórico da atividade** | execução, ação, autor, comentário, criado_em | Só inserção |
 | **Nota do prontuário** | empreendimento, autor, texto, criado_em | Só inserção |
 | **Nível por eixo** | empreendimento, eixo, nível | Único por par empreendimento–eixo. Eixo é uma lista fixa |
-| **Banner** | título, texto_alternativo, imagem (binária), tipo_da_imagem, link, públicos, ordem, ativo, criado_em | Imagem guardada no banco (BAN-02). Públicos: um ou mais papéis entre empreendedor, professor e IS |
+| **Banner** | título, texto_alternativo, imagem (binária), tipo_da_imagem, link, mostrar_empreendedor, mostrar_professor, mostrar_is, ordem, ativo, criado_em | Imagem guardada no banco (BAN-02). As três flags de público (BAN-06): pelo menos uma marcada |
 
 **Relacionamentos:**
 ```text
@@ -333,7 +334,7 @@ Cada jornada é um teste de ponta a ponta.
 > *Dado* A inscrito numa trilha personalizada, *quando* o empreendedor de A desiste, *então* a inscrição fica *Cancelada*, registrada como desistência. *Dado* A na trilha de etapa, *então* a opção de desistir não existe e uma tentativa forjada é recusada. *Dado* um professor, *quando* tenta cancelar uma inscrição, *então* o acesso é negado.
 
 **J-11 · Banners**
-> *Dado* um banner ativo destinado só a empreendedores, *quando* um empreendedor abre o Início, *então* o banner aparece no carrossel; *quando* um professor abre o Início, *então* não aparece. *Quando* a IS desativa o banner, *então* ele some do carrossel. *Dado* um professor ou empreendedor, *quando* tenta cadastrar um banner, *então* o acesso é negado.
+> *Dado* um banner ativo só com a flag de empreendedores marcada, *quando* um empreendedor abre o Início, *então* o banner aparece no carrossel; *quando* um professor abre o Início, *então* não aparece. *Quando* a IS desativa o banner, *então* ele some do carrossel. *Dado* um professor ou empreendedor, *quando* tenta cadastrar um banner, *então* o acesso é negado.
 
 **J-12 · Texto formatado**
 > *Dado* o dono de uma trilha, *quando* escreve na descrição de uma atividade um texto com negrito e um link, *então* o empreendedor vê o negrito e o link clicável. *Quando* o texto enviado contém um `<script>` ou um atributo `onclick`, *então* essas partes são removidas antes de gravar.
@@ -415,7 +416,7 @@ Cada jornada é um teste de ponta a ponta.
 
 ### Da v0.4 para a v0.5 (segunda reunião com a IS)
 
-- **Banners** (F10): carrossel no Início, por papel, sem datas, com imagem enviada pela IS e guardada no banco.
+- **Banners** (F10): carrossel no Início, sem datas, com imagem enviada pela IS e guardada no banco, e uma flag por tipo de usuário para escolher quem vê cada banner (BAN-06).
 - **Liberação de atividades** (EXE-12, RN-17): a atividade pode nascer oculta; o dono a libera por empreendimento; o prazo em dias conta da liberação; atividade oculta não conta no progresso.
 - **Desistência** (INS-12, RN-18): o empreendedor desiste de trilha personalizada, sem motivo; a inscrição registra quem cancelou (`cancelado_por`). O professor não cancela nada.
 - **Conta do empreendimento** (EMP-02, EMP-07, RN-01, RN-02): uma conta compartilhada por empreendimento mais uma lista de contatos sem login. O código do papel continua `empreendedor`.
