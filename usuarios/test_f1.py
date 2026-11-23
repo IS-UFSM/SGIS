@@ -6,11 +6,12 @@ from io import StringIO
 from unittest import mock
 
 from django.conf import settings
+from django.contrib import admin
 from django.core.management import call_command
 from django.db import IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
 from django.contrib.sessions.models import Session
-from django.test import Client, TestCase, TransactionTestCase
+from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -574,3 +575,119 @@ class GestaoDeContasTests(TestCase):
                     self.assertEqual(getattr(sessao, metodo)(url).status_code, 403)
             alvo.refresh_from_db()
             self.assertTrue(alvo.is_active)
+
+
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class GestaoDeContasPeloAdminTests(TestCase):
+    """ACE-04, ACE-09, ACE-11 e J-8: regras também valem no /admin/."""
+
+    def setUp(self):
+        self.admin = Usuario.objects.create_superuser(
+            'admin@sgis.com', 'Admin', 'senha-forte-123',
+        )
+        self.client.force_login(self.admin)
+
+    def adicionar(self, **extra):
+        dados = {
+            'email': 'professor@escola.com',
+            'nome': 'Professora Ana',
+            'papel': Usuario.Papel.PROFESSOR,
+            'password1': 'senha-inicial-123',
+            'password2': 'senha-inicial-123',
+            **extra,
+        }
+        return self.client.post(reverse('admin:usuarios_usuario_add'), dados)
+
+    def acao(self, conta, nome):
+        return self.client.post(reverse('admin:usuarios_usuario_changelist'), {
+            'action': nome,
+            '_selected_action': [str(conta.pk)],
+        })
+
+    def test_a06_admin_cria_conta_com_troca_obrigatoria(self):
+        resposta = self.adicionar()
+
+        self.assertEqual(resposta.status_code, 302)
+        conta = Usuario.objects.get(email='professor@escola.com')
+        self.assertTrue(conta.deve_trocar_senha)
+        self.assertFalse(conta.is_staff)
+        self.assertFalse(conta.is_superuser)
+
+    def test_a06_admin_cria_empreendedor_com_empreendimento(self):
+        self.adicionar(
+            email='joao@atelie.com',
+            nome='João do Ateliê',
+            papel=Usuario.Papel.EMPREENDEDOR,
+            **{
+                'empreendimento-nome': 'Ateliê da Praça',
+                'empreendimento-tipo': 'Artesanato',
+                'empreendimento-descricao': 'Peças feitas à mão.',
+            },
+        )
+
+        conta = Usuario.objects.get(email='joao@atelie.com')
+        empreendimento = Empreendimento.objects.get(representante=conta)
+        self.assertEqual(empreendimento.nome, 'Ateliê da Praça')
+        self.assertNotIn(Empreendimento, admin.site._registry)
+
+    def test_a06_admin_sem_dados_do_empreendimento_nao_cria_nada(self):
+        resposta = self.adicionar(
+            email='joao@atelie.com',
+            nome='João do Ateliê',
+            papel=Usuario.Papel.EMPREENDEDOR,
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(Usuario.objects.filter(email='joao@atelie.com').exists())
+        self.assertFalse(Empreendimento.objects.filter(nome='Ateliê da Praça').exists())
+
+    def test_a17_ultimo_admin_nao_e_desativado(self):
+        resposta = self.acao(self.admin, 'desativar_selecionadas')
+
+        self.assertEqual(resposta.status_code, 302)
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.is_active)
+
+    def test_a18_nenhuma_tela_apaga_conta(self):
+        lista = self.client.get(reverse('admin:usuarios_usuario_changelist'))
+        alterar = self.client.get(
+            reverse('admin:usuarios_usuario_change', args=[self.admin.pk]),
+        )
+
+        self.assertFalse(admin.site._registry[Usuario].has_delete_permission(None))
+        for termo in ('Apagar', 'Excluir', 'Delete', 'delete_selected'):
+            with self.subTest(termo=termo):
+                self.assertNotContains(lista, termo)
+                self.assertNotContains(alterar, termo)
+
+    def test_j8_gestao_de_contas_de_ponta_a_ponta(self):
+        self.adicionar()
+        conta = Usuario.objects.get(email='professor@escola.com')
+
+        formulario = self.client.get(
+            reverse('admin:usuarios_usuario_change', args=[conta.pk]),
+        )
+        self.assertContains(formulario, 'Papel:')
+        self.assertContains(formulario, 'Ativo:')
+        self.assertNotContains(formulario, 'name="papel"')
+        self.assertNotContains(formulario, 'name="is_active"')
+
+        self.assertEqual(self.acao(conta, 'desativar_selecionadas').status_code, 302)
+        conta.refresh_from_db()
+        self.assertFalse(conta.is_active)
+
+        self.assertEqual(self.acao(conta, 'reativar_selecionadas').status_code, 302)
+        conta.refresh_from_db()
+        self.assertTrue(conta.is_active)
+
+        resposta = self.client.post(
+            reverse('admin:auth_user_password_change', args=[conta.pk]),
+            {'password1': 'senha-redefinida-456', 'password2': 'senha-redefinida-456'},
+        )
+        self.assertEqual(resposta.status_code, 302)
+        conta.refresh_from_db()
+        self.assertTrue(conta.deve_trocar_senha)
+        self.assertTrue(conta.check_password('senha-redefinida-456'))
