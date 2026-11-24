@@ -21,10 +21,8 @@ class EmpreendimentoCadastroForm(forms.ModelForm):
                 'placeholder': 'Ex.: Ateliê da Praça',
                 'class': CLASSES_INPUT,
             }),
-            'tipo': forms.TextInput(attrs={
-                'placeholder': 'Ex.: Artesanato',
-                'class': CLASSES_INPUT,
-            }),
+            # F2: o tipo passou a ser uma lista fechada (EMP-01).
+            'tipo': forms.Select(attrs={'class': CLASSES_INPUT}),
             'descricao': forms.Textarea(attrs={
                 'rows': 3,
                 'class': CLASSES_INPUT,

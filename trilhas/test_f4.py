@@ -534,8 +534,11 @@ class InscricaoEmLoteTests(TestCase):
                                            papel=Usuario.Papel.EMPREENDEDOR)
         self.novo = Empreendimento.objects.create(nome='Horta', tipo='Agricultura',
                                                   representante=dono)
+        # RN-01 (F2): cada empreendimento tem a sua conta.
+        dona_brecho = Usuario.objects.create_user('bia@brecho.com', 'Bia', 'senha-forte-123',
+                                                  papel=Usuario.Papel.EMPREENDEDOR)
         self.desativado = Empreendimento.objects.create(nome='Brechó', tipo='Moda',
-                                                        representante=dono,
+                                                        representante=dona_brecho,
                                                         desativado_em=timezone.now())
         regras.inscrever(self.ja_inscrito, self.trilha, self.is_user)
         self.url = reverse('trilhas:inscricoes_lote')

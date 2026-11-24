@@ -52,8 +52,14 @@ def criar_empreendedor(dados_conta, senha, dados_empreendimento):
 
 
 def vincular_empreendimento(conta, dados_empreendimento):
-    """3.3.4: o empreendimento novo entra na pré-incubação pelo signal da F4."""
-    return Empreendimento.objects.create(representante=conta, **dados_empreendimento)
+    """3.3.4: o empreendimento novo entra na pré-incubação pelo signal da F4.
+
+    F2, RN-01: `full_clean` recusa conta que não é de empreendedor (A-04).
+    """
+    empreendimento = Empreendimento(representante=conta, **dados_empreendimento)
+    empreendimento.full_clean()
+    empreendimento.save()
+    return empreendimento
 
 
 # Senha e situação da conta. Nada apaga conta (3.6.4).
