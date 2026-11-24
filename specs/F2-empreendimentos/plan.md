@@ -1,6 +1,6 @@
 # F2 · Empreendimentos — plan
 
-**Estado:** rascunho (revisão para a spec v0.5; a versão anterior foi aprovada em 2026-11-04) · **Data:** 2026-11-24
+**Estado:** aprovado · **Data:** 2026-11-24 (revisão para a spec v0.5)
 **Spec:** [`spec.md`](spec.md) (aprovada em 2026-11-24) · **Constituição:** [`../00-constituicao.md`](../00-constituicao.md) · **Situação atual:** [`../levantamento-codigo-v0.4.md`](../levantamento-codigo-v0.4.md) · **Depende de:** [`F1-acesso/plan.md`](../F1-acesso/plan.md) e [`F4-inscricao/plan.md`](../F4-inscricao/plan.md)
 
 Como implementar a F2 no código atual. Nenhuma regra nova: onde este plano precisa de uma decisão técnica, ela está marcada como **Decisão de plano**.

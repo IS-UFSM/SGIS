@@ -1,7 +1,7 @@
 # F2 · Empreendimentos — tasks
 
-**Estado:** rascunho (revisão para a spec v0.5; a versão anterior foi aprovada em 2026-11-04) · **Data:** 2026-11-24
-**Spec:** [`spec.md`](spec.md) (aprovada) · **Plano:** [`plan.md`](plan.md) (rascunho)
+**Estado:** aprovado · **Data:** 2026-11-24 (revisão para a spec v0.5)
+**Spec:** [`spec.md`](spec.md) (aprovada) · **Plano:** [`plan.md`](plan.md) (aprovado)
 
 Cada tarefa cabe num PR e vira uma issue no GitHub. O título da issue é o título da tarefa; o corpo é o bloco da tarefa. Toda tarefa termina com `python manage.py test` e `python manage.py makemigrations --check --dry-run` sem erros.
 
