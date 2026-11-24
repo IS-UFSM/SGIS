@@ -8,7 +8,7 @@ mensagem é mostrada ao usuário.
 
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import Max, Q
+from django.db.models import Max, OuterRef, Q, Subquery
 from django.utils import timezone
 
 from empreendimentos.models import Empreendimento
@@ -226,6 +226,21 @@ def etapa_atual(empreendimento):
     """INS-05 e A-16: a etapa dessa inscrição; None é "sem etapa". Pausada conta como etapa."""
     inscricao = inscricao_de_etapa(empreendimento)
     return inscricao.trilha.etapa if inscricao else None
+
+
+def anotar_etapa_atual(empreendimentos):
+    """INS-05 na lista da F2 (A-07): a mesma etapa de `etapa_atual`, calculada na consulta.
+
+    Acrescenta `etapa_atual` a cada empreendimento, nula quando está sem etapa, sem uma
+    consulta por linha e sem gravar nada.
+    """
+    etapa = (
+        Inscricao.objects
+        .filter(empreendimento=OuterRef('pk'), status__in=STATUS_EM_ANDAMENTO)
+        .exclude(trilha__etapa='')
+        .values('trilha__etapa')[:1]
+    )
+    return empreendimentos.annotate(etapa_atual=Subquery(etapa))
 
 
 def incubacao_concluida(empreendimento):
