@@ -1,6 +1,6 @@
 # F4 · Inscrição e etapas — spec
 
-**Estado:** rascunho (revisão para a spec mãe v0.5; a versão anterior foi aprovada em 2026-11-04) · **Data:** 2026-11-24
+**Estado:** aprovado · **Data:** 2026-11-24 (revisão para a spec mãe v0.5)
 **Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F4) e jornadas J-3 e J-4 · **Constituição:** [`00-constituicao.md`](../00-constituicao.md) · **Depende de:** [`F3-trilhas`](../F3-trilhas/spec.md) (concluída). É feita antes da [`F2-empreendimentos`](../F2-empreendimentos/spec.md), cujas telas recebem depois as entradas para esta feature (decisão 7.9)
 
 ---

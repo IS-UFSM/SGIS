@@ -1,6 +1,6 @@
 # F3 · Trilhas — spec
 
-**Estado:** rascunho (revisão para a spec mãe v0.5; a versão anterior foi aprovada em 2026-10-23) · **Data:** 2026-11-24
+**Estado:** aprovado · **Data:** 2026-11-24 (revisão para a spec mãe v0.5)
 **Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F3) · **Constituição:** [`00-constituicao.md`](../00-constituicao.md)
 
 ---

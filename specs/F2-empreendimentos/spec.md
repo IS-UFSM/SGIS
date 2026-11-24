@@ -1,6 +1,6 @@
 # F2 · Empreendimentos — spec
 
-**Estado:** rascunho (revisão para a spec mãe v0.5; a versão anterior foi aprovada em 2026-11-04) · **Data:** 2026-11-24
+**Estado:** aprovado · **Data:** 2026-11-24 (revisão para a spec mãe v0.5)
 **Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F2) · **Constituição:** [`00-constituicao.md`](../00-constituicao.md) · **Depende de:** [`F1-acesso`](../F1-acesso/spec.md) (criação do empreendimento junto com o empreendedor)
 
 ---

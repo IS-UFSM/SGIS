@@ -1,6 +1,6 @@
 # SGIS — Constituição
 
-**Estado:** rascunho (versão 1.2 aguardando aprovação; a 1.1 foi aprovada em 2026-10-23) · **Versão:** 1.2 · **Data:** 2026-11-24
+**Estado:** aprovado · **Versão:** 1.2 · **Data:** 2026-11-24
 
 Princípios que valem para **todo** o projeto. Nenhuma spec, plano, tarefa ou PR pode contrariá-los. Quando uma regra daqui conflitar com qualquer outro documento, vale esta.
 
@@ -121,4 +121,4 @@ Esta constituição só muda com a aprovação do responsável pelo projeto, com
 |---|---|---|
 | 1.0 | 2026-10-23 | Primeira versão. |
 | 1.1 | 2026-10-23 | Aprovação pelo responsável pelo projeto (9.2, 9.3, 9.4 e 11); documentos podem ir direto na `main`. |
-| 1.2 | 2026-11-24 | Alinhamento com a spec mãe v0.5: no Art. 8.2, empreendedor passa a ser o papel da conta compartilhada do empreendimento, e entra o termo contato; no Art. 6.1, as jornadas são as da seção 9 da spec mãe, sem numeração fixa. |
+| 1.2 | 2026-11-24 | Aprovada pelo responsável pelo projeto. Alinhamento com a spec mãe v0.5: no Art. 8.2, empreendedor passa a ser o papel da conta compartilhada do empreendimento, e entra o termo contato; no Art. 6.1, as jornadas são as da seção 9 da spec mãe, sem numeração fixa. |
