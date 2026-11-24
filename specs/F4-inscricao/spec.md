@@ -20,7 +20,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 | INS-05 | M | Etapa atual calculada pelas inscrições |
 | INS-06 | M | Status Ativa, Pausada, Concluída, Cancelada; pausar, reativar, cancelar |
 | INS-07 | M | Sem duas inscrições ativas ou pausadas na mesma trilha |
-| INS-08 | M | Inscrição pausada: vê, não marca; prazos correm |
+| INS-08 | M | Inscrição pausada: vê, não marca; prazos não correm |
 | INS-09 | M | Empreendedor vê só as próprias inscrições |
 | INS-10 | S | Inscrição em lote |
 | INS-11 | — | Avançar a partir da Desincubação |
@@ -81,7 +81,10 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 
 ### 3.6 Inscrição pausada
 1. O empreendedor **vê** a trilha, mas **não marca** atividades (a marcação é da F5).
-2. Os prazos das atividades **continuam correndo**.
+2. Os prazos das atividades **não correm** durante a pausa: enquanto a inscrição está pausada, nenhuma atividade dela fica atrasada.
+3. Ao **reativar**, o prazo de cada execução ainda não concluída é **adiado** pelo número de dias em que a inscrição ficou pausada. Com várias pausas, os adiamentos se somam.
+4. O adiamento vale também para o **prazo fixo** [ASSUMIDO]: para aquela inscrição, a data fixa anda junto com a pausa.
+5. As execuções e seus prazos são da **F5**; esta feature define a regra, e a F5 a aplica.
 
 ### 3.7 O que o empreendedor vê
 1. Só as inscrições do **próprio** empreendimento.
@@ -130,6 +133,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 **O que o empreendedor vê**
 - **A-17 (INS-09):** *Dado* o representante de A, *então* "Minhas trilhas" mostra as inscrições ativas, pausadas e concluídas de A, e nenhuma de B.
 - **A-18 (INS-08):** *Dado* uma inscrição pausada, *então* o empreendedor vê a trilha com o aviso de que está pausada. (O bloqueio de marcar é testado na F5.)
+- **A-18b (INS-08, 3.6):** *Dado* uma atividade com prazo em 10 dias, *quando* a IS pausa a inscrição por 5 dias e reativa, *então* o prazo passa para 15 dias depois da data original de início, e a atividade não aparece como atrasada durante a pausa. *Dado* duas pausas de 3 e 4 dias, *então* o prazo é adiado em 7 dias. (Testado na F5, onde as execuções existem.)
 
 **Lote (S)**
 - **A-19 (INS-10):** *Dado* três empreendimentos, um deles já inscrito e outro desativado, *quando* a IS inscreve os três em lote, *então* só um é inscrito e a IS vê "1 inscrito, 2 ignorados".
@@ -177,4 +181,5 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 | 7.10 | O empreendedor pode desistir? De quais trilhas? | Sim, só das personalizadas (v0.5, segunda reunião com a IS). O professor não cancela nada. |
 | 7.11 | A desistência pede motivo? | Não (v0.5). |
 | 7.12 | Pode desistir de inscrição pausada? | [ASSUMIDO] Sim, como na ativa (pendência 10 da spec mãe). |
-| 7.13 | Os prazos devem continuar correndo com a inscrição pausada (3.6.2)? | Decidido antes da v0.5: sim. **A rever com a IS:** o mais comum seria congelar os prazos durante a pausa. |
+| 7.13 | Os prazos devem continuar correndo com a inscrição pausada (3.6.2)? | **Não** (decisão de 2026-11-24, que substitui a anterior). Ao reativar, os prazos são adiados pelo tempo da pausa (3.6). |
+| 7.14 | O prazo fixo também é adiado pela pausa? | [ASSUMIDO] Sim, para que nenhuma atividade vença enquanto a inscrição está parada. |

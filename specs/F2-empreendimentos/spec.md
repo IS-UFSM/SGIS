@@ -19,7 +19,7 @@ Dar à IS o cadastro completo dos empreendimentos, com as pessoas de contato de 
 | EMP-04 | M | Perfil do empreendimento, com os contatos |
 | EMP-05 | M | Quem vê o perfil |
 | EMP-06 | S | Desativar sem apagar histórico; o representante perde o acesso |
-| EMP-07 | M | Contatos do empreendimento, sem login, com um principal |
+| EMP-07 | M | Contatos do empreendimento, sem login, com um responsável que pode mudar |
 | RN-01, RN-02 | — | A conta de empreendedor representa exatamente um empreendimento; o empreendimento tem uma única conta, e as pessoas ficam como contatos |
 | TXT-01, RN-19 | — | A descrição do empreendimento é texto formatado, limpo no servidor |
 | RN-03 | — | Sem supervisão: o professor só se relaciona com o empreendimento pelas trilhas |
@@ -43,12 +43,14 @@ Dar à IS o cadastro completo dos empreendimentos, com as pessoas de contato de 
 
 ### 3.3a Contatos (EMP-07)
 1. Cada empreendimento tem uma lista de **contatos**: as pessoas do empreendimento a quem a IS e os professores podem recorrer. Contato **não faz login** e não é usuário do sistema.
-2. Campos de cada contato: **nome**, **função** (por exemplo, "presidente", "tesoureira"), **e-mail** e **telefone**. Quais são obrigatórios: [Confirmar] (7.7).
-3. No máximo **um** contato é marcado como **principal**. Marcar outro como principal desmarca o anterior.
-4. **Quem cria e edita** os contatos: a IS e, talvez, a própria conta do empreendimento. [Confirmar] (7.6; pendência 8 da spec mãe)
-5. Os contatos podem ser cadastrados junto com o empreendimento (3.2.1) ou depois, no perfil.
-6. Remover um contato (por exemplo, quando a pessoa sai do empreendimento): [Confirmar] (7.8).
-7. **Quem vê** os contatos: as mesmas pessoas que veem o perfil (3.5.3).
+2. **Por que existem:** o **responsável** pelo empreendimento pode mudar com o tempo. Como a conta é uma só e compartilhada (3.2), quem responde pelo empreendimento fica registrado nos contatos, e não na conta.
+3. Campos de cada contato: **nome**, **função** (por exemplo, "presidente", "tesoureira"), **e-mail** e **telefone**. Quais são obrigatórios: [Confirmar] (7.7).
+4. No máximo **um** contato é o **responsável**. **Trocar de responsável** é marcar outro contato: o anterior deixa de ser responsável e continua na lista, e a conta do empreendimento não muda.
+5. **Quem cria e edita** os contatos: a IS e, talvez, a própria conta do empreendimento. [Confirmar] (7.6; pendência 8 da spec mãe)
+6. Os contatos podem ser cadastrados junto com o empreendimento (3.2.1) ou depois, no perfil.
+7. Remover um contato (por exemplo, quando a pessoa sai do empreendimento): [Confirmar] (7.8).
+8. **Quem vê** os contatos: as mesmas pessoas que veem o perfil (3.5.3).
+9. **Empreendimentos que já existem:** na migração, cada um ganha **um contato provisório** (placeholder), marcado como responsável, para a IS substituir pelos dados reais. O perfil mostra que o contato é provisório.
 
 ### 3.4 Lista da IS
 1. Mostra nome, tipo, representante, etapa atual e situação (ativo ou desativado).
@@ -56,7 +58,7 @@ Dar à IS o cadastro completo dos empreendimentos, com as pessoas de contato de 
 3. A **etapa atual** é calculada a partir das inscrições (F4, INS-05), nunca guardada.
 
 ### 3.5 Perfil do empreendimento
-1. Mostra: **dados** (3.1), **contatos** (3.3a), com o principal em destaque, **conta do empreendimento**, **etapa atual**, **trilhas em que está ou esteve inscrito**, com o status de cada inscrição.
+1. Mostra: **dados** (3.1), **contatos** (3.3a), com o responsável em destaque, **conta do empreendimento**, **etapa atual**, **trilhas em que está ou esteve inscrito**, com o status de cada inscrição.
 2. As seções de **níveis por eixo** (F8) e **prontuário** (F7) entram no perfil quando essas features forem feitas.
 3. **Quem vê** (EMP-05): a IS vê o perfil de todos; um professor vê o perfil dos empreendimentos que **atende** (inscritos, agora ou antes, em alguma trilha dele); o representante vê o do **próprio** empreendimento. O admin não vê (RN-16).
 4. Quem não pode ver recebe acesso negado (403), pela lista e pelo endereço direto.
@@ -84,7 +86,8 @@ Dar à IS o cadastro completo dos empreendimentos, com as pessoas de contato de 
 
 **Contatos**
 - **A-13 (EMP-07):** *Dado* a IS, *quando* cadastra dois contatos para A, com nome, função, e-mail e telefone, *então* eles aparecem no perfil de A, e nenhum deles consegue entrar no sistema.
-- **A-14 (EMP-07):** *Dado* A com um contato principal, *quando* a IS marca outro contato como principal, *então* o anterior deixa de ser principal, e A fica com exatamente um principal.
+- **A-14 (EMP-07):** *Dado* A com o contato Maria como responsável, *quando* a IS marca João como responsável, *então* Maria deixa de ser responsável e continua na lista, A fica com exatamente um responsável, e a conta de A não muda.
+- **A-14b (3.3a.9):** *Dado* empreendimentos que existiam antes dos contatos, *quando* a migração roda, *então* cada um fica com exatamente um contato, provisório e responsável, e o perfil indica que ele é provisório. Desfazer a migração remove esses contatos.
 - **A-15 (EMP-07, EMP-05):** *Dado* o professor X, que atende A, e a conta de A, *então* os dois veem os contatos de A. *Dado* o professor Z, que não atende A, ou a conta de B, *então* recebem 403.
 - **A-16 (EMP-07):** *Dado* um professor, *quando* tenta criar ou editar um contato, *então* o acesso é negado. (O caso da conta do empreendimento depende da decisão 7.6.)
 
@@ -129,6 +132,7 @@ Dar à IS o cadastro completo dos empreendimentos, com as pessoas de contato de 
 | 7.4 | Desativar o empreendimento tira o acesso do representante (pendência 7 da spec mãe)? | Sim, como em 3.6.2: o representante não entra enquanto o empreendimento estiver desativado; a conta dele continua ativa. |
 | 7.5 | O que fazer com dados de produção fora de RN-01? | Cada empreendedor fica com **exatamente um** empreendimento. A produção é consultada antes da migração; havendo casos, a IS diz qual é o certo, e a correção vira um comando revisado (F0, decisão 7.2). |
 | 7.6 | Quem cria e edita os contatos? | [Confirmar] Proposta: a IS e a própria conta do empreendimento (pendência 8 da spec mãe). |
-| 7.7 | Quais campos do contato são obrigatórios? | [Confirmar] Proposta: só o nome; e-mail e telefone opcionais, mas pelo menos um dos dois. |
+| 7.7 | Quais campos do contato são obrigatórios? | [Confirmar] Proposta: só o nome; e-mail e telefone opcionais, mas pelo menos um dos dois. O contato provisório da migração (3.3a.9) é a exceção. |
 | 7.8 | Um contato pode ser removido? | [Confirmar] Proposta: sim. O contato é dado pessoal, não registro de negócio (Constituição, Art. 4), e guardar dados de quem saiu do empreendimento contraria a coleta mínima (Art. 5.5). |
-| 7.9 | Os empreendimentos que já existem ganham algum contato na migração? | [Confirmar] Proposta: um contato principal com o nome e o e-mail da conta atual. |
+| 7.9 | Os empreendimentos que já existem ganham algum contato na migração? | Sim: um contato **provisório** (placeholder), marcado como responsável, para a IS preencher (decisão de 2026-11-24). |
+| 7.10 | Para que servem os contatos? | O responsável pelo empreendimento pode mudar; os contatos registram quem responde por ele sem trocar a conta (decisão de 2026-11-24). O termo "principal" da primeira versão da v0.5 passou a ser **responsável**. |
