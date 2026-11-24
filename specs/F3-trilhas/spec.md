@@ -1,6 +1,6 @@
 # F3 · Trilhas — spec
 
-**Estado:** Aprovado · **Data:** 2026-10-23
+**Estado:** rascunho (revisão para a spec mãe v0.5; a versão anterior foi aprovada em 2026-10-23) · **Data:** 2026-11-24
 **Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F3) · **Constituição:** [`00-constituicao.md`](../00-constituicao.md)
 
 ---
@@ -16,7 +16,7 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 | TRL-01 | M | Dois tipos: trilha de etapa (IS, uma por etapa) e trilha personalizada |
 | TRL-02 | M | Professor ou IS cria trilha personalizada: título, descrição e atividades |
 | TRL-03 | M | IS mantém a trilha de cada etapa |
-| TRL-04 | M | Campos da atividade |
+| TRL-04 | M | Campos da atividade: sem tipo nem endereço, com descrição formatada e "visível desde a inscrição" |
 | TRL-05 | M | Estados rascunho → publicada → arquivada |
 | TRL-06 | M | Editar trilha publicada |
 | TRL-07 | M | Quem edita |
@@ -24,6 +24,7 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 | TRL-10 | M | Quem vê trilhas |
 | RN-08 | — | Exatamente uma trilha de etapa por etapa |
 | RN-10 | — | Atividade e trilha com progresso são arquivadas, nunca apagadas |
+| TXT-01, RN-19 | — | Descrições da trilha e da atividade em texto formatado, limpo no servidor |
 
 **Não cobertos aqui:** TRL-09 (duplicar, prioridade C) fica para depois.
 
@@ -49,10 +50,11 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 7. Uma trilha personalizada de um professor só é editada pelo próprio professor ou pela IS. Outro professor nunca edita.
 
 ### 3.4 Atividades
-1. Campos: título (obrigatório), descrição, tipo (Leitura, Link ou Tarefa), endereço, obrigatória (padrão sim), exige validação (padrão sim), prazo e ordem.
-2. O **endereço** é obrigatório quando o tipo é Link e deve ser um endereço web válido. Nos outros tipos é opcional.
-3. **Prazo:** fixo (uma data), em dias após a inscrição, ou sem prazo. Nunca os dois ao mesmo tempo. Dias após a inscrição é um número inteiro maior que zero.
+1. Campos: título (obrigatório), descrição (texto formatado, 3.7), obrigatória (padrão sim), exige validação (padrão sim), **visível desde a inscrição** (padrão sim [ASSUMIDO]), prazo e ordem.
+2. **Não há tipo de atividade nem campo de endereço.** Links, quando houver, vão dentro da descrição.
+3. **Prazo:** fixo (uma data), em dias, ou sem prazo. Nunca os dois ao mesmo tempo. Os dias são um número inteiro maior que zero e contam a partir de quando a atividade fica **disponível** para o empreendimento: a inscrição, a criação da atividade ou a liberação (F5, EXE-02).
 4. A **ordem** define a sequência em que o empreendimento vê as atividades. Atividade nova entra no fim.
+5. **Visível desde a inscrição:** marcada, a atividade aparece para o empreendimento assim que ele é inscrito. Desmarcada, ela fica **oculta** até o dono da trilha liberá-la para cada empreendimento. A liberação, e o que o empreendimento vê enquanto a atividade está oculta, são da **F5** (EXE-12).
 
 ### 3.5 Estados da trilha
 
@@ -65,11 +67,11 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 2. **Rascunho:** tudo é editável. Atividades podem ser criadas, editadas e apagadas.
 3. **Publicada:** só se pode
    - ajustar os textos da trilha (título, descrição);
-   - ajustar os textos das atividades existentes (título, descrição, endereço);
+   - ajustar os textos das atividades existentes (título, descrição);
    - acrescentar atividades **no fim**;
    - arquivar uma atividade.
 
-   Tipo, obrigatoriedade, exigência de validação e prazo de uma atividade existente **não mudam** depois da publicação, porque já valem para empreendimentos inscritos.
+   Obrigatoriedade, exigência de validação, visibilidade desde a inscrição e prazo de uma atividade existente **não mudam** depois da publicação, porque já valem para empreendimentos inscritos.
 4. **Arquivada:** nada é editável. A trilha continua visível para quem já a via.
 5. Uma trilha ou atividade **nunca é apagada** depois de publicada. Atividade arquivada some da trilha para novas inscrições, mas continua no histórico de quem a fez.
 6. Reordenar (TRL-08) só é possível enquanto a trilha está em rascunho.
@@ -84,7 +86,11 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 | Empreendedor | Só as trilhas em que o seu empreendimento está ou esteve inscrito (nunca rascunho) |
 | Admin | Nenhuma (RN-16) |
 
-"Professor que atende" segue a definição da spec mãe (seção 2).
+"Professor que atende" segue a definição da spec mãe (seção 2). Ver a trilha não significa ver todas as atividades dela: o empreendedor só vê as liberadas (F5, EXE-12).
+
+### 3.7 Texto formatado
+1. A descrição da trilha e a descrição da atividade são editadas numa caixa única com **mini editor**: negrito, itálico, lista, link e parágrafo (TXT-01).
+2. O texto é **limpo no servidor** antes de ser gravado e exibido: só essas marcações sobrevivem (RN-19). Links abrem em nova aba.
 
 ## 4. Critérios de aceite
 
@@ -95,15 +101,17 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 - **A-04 (TRL-01):** *Dado* um formulário de trilha enviado com etapa, dono ou estado forjados, *então* esses valores são ignorados e o sistema usa os seus (personalizada, quem enviou, rascunho).
 
 **Atividades**
-- **A-05 (TRL-04):** *Dado* uma atividade do tipo Link sem endereço, ou com endereço inválido, *quando* é salva, *então* o sistema recusa.
+- **A-05 (TXT-01, RN-19):** *Dado* o dono, *quando* salva a descrição de uma atividade com negrito e um link, *então* quem vê a atividade vê o negrito e o link clicável. *Quando* a descrição enviada contém `<script>` ou um atributo `onclick`, *então* essas partes são removidas antes de gravar. O mesmo vale para a descrição da trilha.
+- **A-05b (TRL-04):** *Dado* um formulário de atividade enviado com campos de tipo ou endereço, *então* eles são ignorados: a atividade não tem esses campos.
 - **A-06 (TRL-04):** *Dado* uma atividade com prazo fixo e prazo em dias ao mesmo tempo, *quando* é salva, *então* o sistema recusa.
-- **A-07 (TRL-04):** *Dado* uma atividade criada sem informar obrigatoriedade nem validação, *então* ela é obrigatória e exige validação.
+- **A-07 (TRL-04):** *Dado* uma atividade criada sem informar obrigatoriedade, validação nem visibilidade, *então* ela é obrigatória, exige validação e é visível desde a inscrição.
+- **A-07b (TRL-04):** *Dado* uma atividade em rascunho, *quando* o dono desmarca "visível desde a inscrição", *então* a atividade fica marcada como oculta até a liberação (o efeito para o empreendimento é testado na F5).
 - **A-08 (TRL-04):** *Dado* uma trilha com atividades, *quando* uma nova é acrescentada, *então* ela fica por último.
 
 **Estados**
 - **A-09 (TRL-05):** *Dado* uma trilha em rascunho sem atividades, *quando* o dono tenta publicar, *então* o sistema recusa. Com uma atividade, publica.
 - **A-10 (TRL-05):** *Dado* uma trilha publicada, *então* ela não volta a rascunho.
-- **A-11 (TRL-06):** *Dado* uma trilha publicada, *quando* o dono altera o título de uma atividade, *então* a alteração é salva. *Quando* tenta alterar o tipo, a obrigatoriedade, a validação ou o prazo dela, *então* o sistema recusa.
+- **A-11 (TRL-06):** *Dado* uma trilha publicada, *quando* o dono altera o título de uma atividade, *então* a alteração é salva. *Quando* tenta alterar a obrigatoriedade, a validação, a visibilidade desde a inscrição ou o prazo dela, *então* o sistema recusa.
 - **A-12 (TRL-06):** *Dado* uma trilha publicada, *quando* o dono acrescenta uma atividade, *então* ela entra no fim.
 - **A-13 (RN-10):** *Dado* uma trilha publicada, *quando* o dono tenta apagar uma atividade, *então* o sistema só oferece arquivar.
 - **A-14 (TRL-05):** *Dado* uma trilha arquivada, *quando* alguém tenta editá-la, *então* o sistema recusa.
@@ -128,6 +136,7 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 
 - Inscrição em trilha, avançar etapa e a regra "inscrição só em trilha publicada": **F4**.
 - Execuções, progresso e o que acontece com quem já está inscrito quando uma atividade é acrescentada ou arquivada: **F5**.
+- Liberar atividades ocultas e o que o empreendimento vê delas: **F5** (EXE-12).
 - Duplicar trilha (TRL-09).
 - Etapas internas, vídeos, questionários e upload de arquivos.
 
@@ -144,6 +153,11 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 
 **Como foi feita a conversão** (migrações `trilhas/0006` a `0008`, T1): a antiga trilha de pré-incubação virou a trilha de etapa Pré-incubação, publicada, sem perder inscrições; as trilhas personalizadas existentes ficaram publicadas; as de Incubação e Desincubação foram criadas em rascunho.
 
+**Revisão v0.5 (2026-11-24), ainda não implementada:**
+- A atividade ainda tem `tipo` e `endereco`, que saem. A migração passa o endereço que existe para o fim da descrição, com função reversa (Constituição, Art. 7.4).
+- Falta o campo "visível desde a inscrição". Atividades que já existem ficam visíveis desde a inscrição, mantendo o comportamento atual.
+- As descrições são texto simples; falta o mini editor e a limpeza no servidor.
+
 **O que ficou para outras features:**
 - Inscrever só em trilha publicada e avançar etapa: **F4**.
 - Execuções e progresso das atividades: **F5**.
@@ -157,6 +171,9 @@ Permitir que a IS mantenha as três trilhas de etapa e que professores e a IS cr
 | 7.2 | A trilha de pré-incubação publicada sem atividades pode existir? | Sim, só como exceção da conversão. A partir daí vale a regra de publicação. |
 | 7.3 | Pode arquivar trilha personalizada com inscrições ativas ou pausadas? | Não. É preciso concluir ou cancelar as inscrições antes. |
 | 7.4 | Trilhas personalizadas que já existem viram publicadas ou rascunho? | Publicadas. |
-| 7.5 | O endereço da atividade Link pode ser editado depois da publicação? | Sim, como texto. |
+| 7.5 | O endereço da atividade Link pode ser editado depois da publicação? | Sim, como texto. **Superada na v0.5:** não há mais endereço; o link fica na descrição, que pode ser editada depois da publicação. |
 | 7.6 | A IS pode editar trilhas personalizadas de professores? | Sim, com plenos poderes de edição, como se fosse a dona (3.3.5). |
 | 7.7 | O que é o "cuidado extra" da IS ao editar trilha de professor? | Só uma confirmação antes de alterar, mostrando de qual professor é a trilha. |
+| 7.8 | A atividade continua com tipo (Leitura, Link, Tarefa)? | Não (v0.5, segunda reunião com a IS). Fica só a descrição formatada. |
+| 7.9 | Qual o padrão de "visível desde a inscrição"? | [ASSUMIDO] Sim, para manter o comportamento atual e porque a maioria das atividades aparece logo. |
+| 7.10 | Arquivar atividade: que rótulo o dono vê? | **A revisar** com a IS (pendência 9 da spec mãe). Proposta: "Remover atividade", que por baixo continua sendo arquivamento (RN-10). |

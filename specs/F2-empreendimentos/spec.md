@@ -1,42 +1,54 @@
 # F2 · Empreendimentos — spec
 
-**Estado:** aprovado · **Data:** 2026-11-04
+**Estado:** rascunho (revisão para a spec mãe v0.5; a versão anterior foi aprovada em 2026-11-04) · **Data:** 2026-11-24
 **Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F2) · **Constituição:** [`00-constituicao.md`](../00-constituicao.md) · **Depende de:** [`F1-acesso`](../F1-acesso/spec.md) (criação do empreendimento junto com o empreendedor)
 
 ---
 
 ## 1. Objetivo
 
-Dar à IS o cadastro completo dos empreendimentos e a cada pessoa envolvida uma página de perfil do empreendimento, com os dados, a etapa atual e as trilhas. O perfil é o lugar onde as features seguintes acrescentam os níveis por eixo (F8) e o prontuário (F7).
+Dar à IS o cadastro completo dos empreendimentos, com as pessoas de contato de cada um, e a cada pessoa envolvida uma página de perfil do empreendimento, com os dados, os contatos, a etapa atual e as trilhas. O empreendimento entra no sistema por **uma única conta**, compartilhada pelas suas pessoas. O perfil é o lugar onde as features seguintes acrescentam os níveis por eixo (F8) e o prontuário (F7).
 
 ## 2. Requisitos cobertos
 
 | ID | Prior. | Resumo |
 |---|---|---|
 | EMP-01 | M | Cadastro e edição pela IS: nome, tipo, descrição, contato |
-| EMP-02 | M | Um único representante por empreendimento |
+| EMP-02 | M | Uma única conta (representante) por empreendimento, compartilhada pelas suas pessoas |
 | EMP-03 | M | Lista da IS com filtros: ativos, desativados, por etapa atual |
-| EMP-04 | M | Perfil do empreendimento |
+| EMP-04 | M | Perfil do empreendimento, com os contatos |
 | EMP-05 | M | Quem vê o perfil |
 | EMP-06 | S | Desativar sem apagar histórico; o representante perde o acesso |
-| RN-01, RN-02 | — | Empreendedor representa exatamente um empreendimento; empreendimento tem um único representante |
+| EMP-07 | M | Contatos do empreendimento, sem login, com um principal |
+| RN-01, RN-02 | — | A conta de empreendedor representa exatamente um empreendimento; o empreendimento tem uma única conta, e as pessoas ficam como contatos |
+| TXT-01, RN-19 | — | A descrição do empreendimento é texto formatado, limpo no servidor |
 | RN-03 | — | Sem supervisão: o professor só se relaciona com o empreendimento pelas trilhas |
 
 ## 3. Regras
 
 ### 3.1 Dados do empreendimento
-1. Campos: **nome** (obrigatório), **tipo** (MEI, Associação, Coletivo ou Outro; obrigatório), **descrição**, **e-mail de contato** e **telefone de contato** (opcionais).
-2. O e-mail de contato é do empreendimento e **não** é usado para login; o login é o e-mail da conta do representante (F1).
+1. Campos: **nome** (obrigatório), **tipo** (MEI, Associação, Coletivo ou Outro; obrigatório), **descrição** (texto formatado, TXT-01), **e-mail de contato** e **telefone de contato** (opcionais).
+2. O e-mail e o telefone de contato são o **contato geral** do empreendimento e **não** são usados para login; o login é o e-mail da conta do empreendimento (F1). As pessoas ficam nos contatos (3.3a).
 
-### 3.2 Criação e representante
-1. Um empreendimento **só é criado junto com o seu representante**, na criação da conta de empreendedor pela IS ou pelo admin (F1, ACE-05). Não existe empreendimento sem representante. Os campos desta seção entram no mesmo formulário.
-2. Cada empreendimento tem **exatamente um representante**, que é uma conta com papel empreendedor.
-3. Cada empreendedor representa **exatamente um** empreendimento.
-4. O representante **não muda** pelas telas do MVP. Se a pessoa mudar, a IS desativa a conta antiga e o empreendimento continua com ela como representante; a troca de representante fica para depois.
+### 3.2 Criação e conta do empreendimento
+1. Um empreendimento **só é criado junto com a sua conta**, na criação da conta de empreendedor pela IS ou pelo admin (F1, ACE-05). Não existe empreendimento sem conta. Os campos desta seção entram no mesmo formulário.
+2. Cada empreendimento tem **exatamente uma conta**, com papel empreendedor. Ela é o **representante** do empreendimento e é **compartilhada** pelas pessoas dele: não há uma conta por pessoa.
+3. Cada conta de empreendedor representa **exatamente um** empreendimento.
+4. A conta **não muda** pelas telas do MVP. Quando as pessoas do empreendimento mudam, atualizam-se os contatos (3.3a) e, se for preciso, a IS redefine a senha da conta (F1, ACE-08). [ASSUMIDO]
+5. Nas telas, a conta aparece como **"conta do empreendimento"**. O código do papel continua `empreendedor`.
 
 ### 3.3 Edição
-1. Só a **IS** edita os dados do empreendimento (3.1). O representante e os professores só leem.
-2. O representante não é trocado pela edição (3.2.4).
+1. Só a **IS** edita os dados do empreendimento (3.1). A conta do empreendimento e os professores só leem.
+2. A conta do empreendimento não é trocada pela edição (3.2.4).
+
+### 3.3a Contatos (EMP-07)
+1. Cada empreendimento tem uma lista de **contatos**: as pessoas do empreendimento a quem a IS e os professores podem recorrer. Contato **não faz login** e não é usuário do sistema.
+2. Campos de cada contato: **nome**, **função** (por exemplo, "presidente", "tesoureira"), **e-mail** e **telefone**. Quais são obrigatórios: [Confirmar] (7.7).
+3. No máximo **um** contato é marcado como **principal**. Marcar outro como principal desmarca o anterior.
+4. **Quem cria e edita** os contatos: a IS e, talvez, a própria conta do empreendimento. [Confirmar] (7.6; pendência 8 da spec mãe)
+5. Os contatos podem ser cadastrados junto com o empreendimento (3.2.1) ou depois, no perfil.
+6. Remover um contato (por exemplo, quando a pessoa sai do empreendimento): [Confirmar] (7.8).
+7. **Quem vê** os contatos: as mesmas pessoas que veem o perfil (3.5.3).
 
 ### 3.4 Lista da IS
 1. Mostra nome, tipo, representante, etapa atual e situação (ativo ou desativado).
@@ -44,7 +56,7 @@ Dar à IS o cadastro completo dos empreendimentos e a cada pessoa envolvida uma 
 3. A **etapa atual** é calculada a partir das inscrições (F4, INS-05), nunca guardada.
 
 ### 3.5 Perfil do empreendimento
-1. Mostra: **dados** (3.1), **representante**, **etapa atual**, **trilhas em que está ou esteve inscrito**, com o status de cada inscrição.
+1. Mostra: **dados** (3.1), **contatos** (3.3a), com o principal em destaque, **conta do empreendimento**, **etapa atual**, **trilhas em que está ou esteve inscrito**, com o status de cada inscrição.
 2. As seções de **níveis por eixo** (F8) e **prontuário** (F7) entram no perfil quando essas features forem feitas.
 3. **Quem vê** (EMP-05): a IS vê o perfil de todos; um professor vê o perfil dos empreendimentos que **atende** (inscritos, agora ou antes, em alguma trilha dele); o representante vê o do **próprio** empreendimento. O admin não vê (RN-16).
 4. Quem não pode ver recebe acesso negado (403), pela lista e pelo endereço direto.
@@ -64,16 +76,24 @@ Dar à IS o cadastro completo dos empreendimentos e a cada pessoa envolvida uma 
 - **A-02 (EMP-01):** *Dado* um tipo fora da lista, ou um e-mail de contato inválido, *quando* a IS salva, *então* o sistema recusa e nada é criado.
 - **A-03 (EMP-01):** *Dado* a IS, *quando* edita o nome e o telefone de um empreendimento, *então* a mudança é salva. *Dado* um professor ou o representante, *quando* tenta editar, *então* o acesso é negado.
 
-**Representante**
-- **A-04 (EMP-02, RN-01, RN-02):** *Dado* um empreendedor que já representa um empreendimento, *então* não há como ligá-lo a um segundo. *Dado* uma conta que não é de empreendedor, *então* ela não pode ser representante.
-- **A-05 (3.2.4):** *Dado* a edição do empreendimento, mesmo forjando o formulário, *então* o representante não muda.
+- **A-02b (TXT-01, RN-19):** *Dado* a IS, *quando* salva uma descrição com negrito e um link, *então* o perfil mostra o negrito e o link clicável. *Quando* a descrição enviada contém `<script>` ou um atributo `onclick`, *então* essas partes são removidas antes de gravar.
+
+**Conta do empreendimento**
+- **A-04 (EMP-02, RN-01, RN-02):** *Dado* uma conta de empreendedor que já representa um empreendimento, *então* não há como ligá-la a um segundo. *Dado* uma conta que não é de empreendedor, *então* ela não pode ser representante.
+- **A-05 (3.2.4):** *Dado* a edição do empreendimento, mesmo forjando o formulário, *então* a conta do empreendimento não muda.
+
+**Contatos**
+- **A-13 (EMP-07):** *Dado* a IS, *quando* cadastra dois contatos para A, com nome, função, e-mail e telefone, *então* eles aparecem no perfil de A, e nenhum deles consegue entrar no sistema.
+- **A-14 (EMP-07):** *Dado* A com um contato principal, *quando* a IS marca outro contato como principal, *então* o anterior deixa de ser principal, e A fica com exatamente um principal.
+- **A-15 (EMP-07, EMP-05):** *Dado* o professor X, que atende A, e a conta de A, *então* os dois veem os contatos de A. *Dado* o professor Z, que não atende A, ou a conta de B, *então* recebem 403.
+- **A-16 (EMP-07):** *Dado* um professor, *quando* tenta criar ou editar um contato, *então* o acesso é negado. (O caso da conta do empreendimento depende da decisão 7.6.)
 
 **Lista**
 - **A-06 (EMP-03):** *Dado* empreendimentos ativos e desativados, em etapas diferentes, *quando* a IS filtra por "desativados" ou por uma etapa, *então* aparecem só os que correspondem, e os filtros se combinam.
 - **A-07 (EMP-03, INS-05):** *Dado* um empreendimento que avançou para a Incubação (F4), *então* a lista mostra "Incubação" como etapa atual, sem que nenhum campo de etapa tenha sido gravado.
 
 **Perfil**
-- **A-08 (EMP-04):** *Dado* um empreendimento com inscrições, *quando* a IS abre o perfil, *então* vê os dados, o representante, a etapa atual e as trilhas com o status de cada inscrição.
+- **A-08 (EMP-04):** *Dado* um empreendimento com inscrições, *quando* a IS abre o perfil, *então* vê os dados, os contatos, a conta do empreendimento, a etapa atual e as trilhas com o status de cada inscrição.
 - **A-09 (EMP-05):** *Dado* o professor X, dono de uma trilha em que o empreendimento A esteve inscrito, *então* X vê o perfil de A, mesmo com a inscrição encerrada. *Dado* o professor Z, que nunca atendeu A, *então* recebe 403.
 - **A-10 (EMP-05):** *Dado* o representante de A, *então* vê o perfil de A e recebe 403 no perfil de B. *Dado* o admin, *então* recebe 403 em qualquer perfil.
 
@@ -86,7 +106,8 @@ Dar à IS o cadastro completo dos empreendimentos e a cada pessoa envolvida uma 
 - Criação da conta do empreendedor e a regra "criados juntos": **F1** (ACE-05). A F2 só acrescenta os campos ao formulário.
 - Níveis por eixo e prontuário no perfil: **F8** e **F7**.
 - Progresso das trilhas no perfil: **F5**.
-- Troca de representante e mais de um representante por empreendimento: fora do MVP.
+- Troca da conta do empreendimento e contas individuais para cada pessoa: fora do MVP (a v0.5 adotou uma conta compartilhada mais contatos).
+- O mini editor de texto formatado em si (TXT-01) é comum a várias features; esta feature só o usa na descrição.
 
 ## 6. Situação atual (de [`levantamento-codigo-v0.4.md`](../levantamento-codigo-v0.4.md))
 
@@ -96,13 +117,18 @@ Dar à IS o cadastro completo dos empreendimentos e a cada pessoa envolvida uma 
 - **Não há tela** de empreendimentos: lista, perfil e edição só existem no `/admin/`, que a F0 vai fechar para dados de negócio.
 - Empreendimento desativado já não pode ser inscrito; o representante dele continua entrando normalmente.
 - Os empreendimentos que já existem têm o tipo em texto livre ("alimentos", "Artesanato / Textil").
+- **Revisão v0.5 (2026-11-24):** não existem contatos; a descrição é texto simples; as telas usam "representante" ou "empreendedor" onde a v0.5 diz "conta do empreendimento". Esta seção será atualizada ao levantar o código das tarefas da F2.
 
 ## 7. Decisões
 
 | # | Pergunta | Decisão |
 |---|---|---|
 | 7.1 | O que fazer com o tipo em texto livre dos empreendimentos que já existem? | A migração converte para "Outro" e acrescenta o texto antigo ao fim da descrição. |
-| 7.2 | O representante pode ser trocado no MVP? | Não. A troca de representante fica para depois do MVP. |
+| 7.2 | O representante pode ser trocado no MVP? | Não. A troca da conta do empreendimento fica para depois do MVP. Com a conta compartilhada (v0.5), a mudança de pessoas se resolve pelos contatos e pela redefinição de senha (3.2.4). |
 | 7.3 | Desativar o empreendimento pausa as inscrições ativas? | Não; as inscrições ficam como estão. A IS pausa ou cancela à mão se quiser. |
 | 7.4 | Desativar o empreendimento tira o acesso do representante (pendência 7 da spec mãe)? | Sim, como em 3.6.2: o representante não entra enquanto o empreendimento estiver desativado; a conta dele continua ativa. |
 | 7.5 | O que fazer com dados de produção fora de RN-01? | Cada empreendedor fica com **exatamente um** empreendimento. A produção é consultada antes da migração; havendo casos, a IS diz qual é o certo, e a correção vira um comando revisado (F0, decisão 7.2). |
+| 7.6 | Quem cria e edita os contatos? | [Confirmar] Proposta: a IS e a própria conta do empreendimento (pendência 8 da spec mãe). |
+| 7.7 | Quais campos do contato são obrigatórios? | [Confirmar] Proposta: só o nome; e-mail e telefone opcionais, mas pelo menos um dos dois. |
+| 7.8 | Um contato pode ser removido? | [Confirmar] Proposta: sim. O contato é dado pessoal, não registro de negócio (Constituição, Art. 4), e guardar dados de quem saiu do empreendimento contraria a coleta mínima (Art. 5.5). |
+| 7.9 | Os empreendimentos que já existem ganham algum contato na migração? | [Confirmar] Proposta: um contato principal com o nome e o e-mail da conta atual. |

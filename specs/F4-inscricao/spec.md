@@ -1,6 +1,6 @@
 # F4 · Inscrição e etapas — spec
 
-**Estado:** aprovado · **Data:** 2026-11-04
+**Estado:** rascunho (revisão para a spec mãe v0.5; a versão anterior foi aprovada em 2026-11-04) · **Data:** 2026-11-24
 **Spec mãe:** [`SGIS_SPEC_MVP_v0.4.md`](../SGIS_SPEC_MVP_v0.4.md), seção 5 (F4) e jornadas J-3 e J-4 · **Constituição:** [`00-constituicao.md`](../00-constituicao.md) · **Depende de:** [`F3-trilhas`](../F3-trilhas/spec.md) (concluída). É feita antes da [`F2-empreendimentos`](../F2-empreendimentos/spec.md), cujas telas recebem depois as entradas para esta feature (decisão 7.9)
 
 ---
@@ -24,7 +24,9 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 | INS-09 | M | Empreendedor vê só as próprias inscrições |
 | INS-10 | S | Inscrição em lote |
 | INS-11 | — | Avançar a partir da Desincubação |
+| INS-12 | M | Desistência do empreendedor em trilha personalizada |
 | RN-09 | — | Uma única etapa por vez |
+| RN-18 | — | O empreendedor só desiste de trilha personalizada; o professor não cancela inscrições |
 
 ## 3. Regras
 
@@ -61,13 +63,16 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 |---|---|---|---|---|
 | Pausar | Ativa | Pausada | IS | Motivo opcional |
 | Reativar | Pausada | Ativa | IS | — |
-| Cancelar | Ativa, Pausada | Cancelada | IS | Motivo opcional |
+| Cancelar | Ativa, Pausada | Cancelada | IS, em qualquer trilha | Motivo opcional |
+| Desistir | Ativa, Pausada | Cancelada | Empreendedor, só em trilha personalizada do próprio empreendimento | Sem motivo, com confirmação (3.9) |
 | Concluir | Ativa | Concluída | Sistema, ao avançar etapa; IS, à mão, nas trilhas personalizadas | — |
 
 1. Uma inscrição concluída ou cancelada **não volta**. Para continuar, a IS faz uma inscrição nova (3.1.3).
 2. Nada é apagado: todas as inscrições ficam no histórico do empreendimento, com as datas de cada mudança.
 3. **Cancelar a inscrição de etapa** deixa o empreendimento sem etapa.
 4. Cada inscrição guarda a data **mais recente** de cada tipo de mudança e **um único** motivo: pausar de novo substitui a data da pausa, e um motivo novo substitui o anterior.
+5. A inscrição cancelada guarda **quem cancelou**. Assim se distingue a **desistência** (cancelada pelo próprio empreendimento) do **cancelamento pela IS**, e as telas mostram "Desistência" ou "Cancelada pela IS".
+6. O **professor** não pausa, reativa, cancela nem conclui inscrições, nem nas suas trilhas.
 
 ### 3.5a Definir etapa (correção)
 1. Para corrigir um avanço errado ou um cancelamento, a **IS** pode **definir a etapa** de um empreendimento que está **sem etapa ativa**: escolhe a etapa e ele é inscrito, como Ativa, na trilha dessa etapa, que precisa estar publicada.
@@ -85,6 +90,13 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 ### 3.8 Inscrição em lote (prioridade S)
 1. A IS escolhe uma trilha personalizada publicada e marca vários empreendimentos de uma vez.
 2. Os que já estão inscritos (ativa ou pausada) ou estão desativados são ignorados, e a IS vê quantos foram inscritos e quantos foram ignorados.
+
+### 3.9 Desistência (INS-12)
+1. O empreendedor **desiste** de uma inscrição do **próprio** empreendimento numa trilha **personalizada**, ativa ou pausada [ASSUMIDO: também pausada; pendência 10 da spec mãe].
+2. **Não** desiste de trilha de etapa: a opção não aparece, e uma tentativa forjada é recusada. Sair da incubação é decisão da IS.
+3. A desistência pede **confirmação** e **não pede motivo**. Ela não altera o motivo já guardado na inscrição [ASSUMIDO].
+4. A inscrição fica **Cancelada**, com a data e com o próprio empreendimento como quem cancelou (3.5.5). Como qualquer cancelada, não volta: para retomar, a IS faz uma inscrição nova (3.1.3).
+5. Depois da desistência, a trilha sai de "Minhas trilhas", como as demais canceladas (3.7.2).
 
 ## 4. Critérios de aceite
 
@@ -122,6 +134,15 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 **Lote (S)**
 - **A-19 (INS-10):** *Dado* três empreendimentos, um deles já inscrito e outro desativado, *quando* a IS inscreve os três em lote, *então* só um é inscrito e a IS vê "1 inscrito, 2 ignorados".
 
+**Desistência e cancelamento**
+- **A-20 (INS-12):** *Dado* A inscrito, como Ativa, numa trilha personalizada, *quando* a conta de A desiste e confirma, *então* a inscrição fica Cancelada, com a data, registrada como desistência, e a IS a vê como "Desistência".
+- **A-21 (INS-12):** *Dado* a inscrição de A pausada numa trilha personalizada, *quando* a conta de A desiste, *então* a inscrição fica Cancelada.
+- **A-22 (INS-12, RN-18):** *Dado* A na trilha de etapa, *então* a opção de desistir não aparece, e uma desistência forjada é recusada sem mudar nada.
+- **A-23 (INS-12, INS-09):** *Dado* a conta de B, *quando* tenta desistir de uma inscrição de A, *então* o acesso é negado e nada muda.
+- **A-24 (INS-12):** *Dado* uma inscrição concluída ou cancelada, *quando* a conta do empreendimento tenta desistir, *então* o sistema recusa.
+- **A-25 (INS-06, RN-18):** *Dado* um professor, dono ou não da trilha, *quando* tenta pausar, reativar, cancelar ou concluir uma inscrição, *então* o acesso é negado.
+- **A-26 (3.5.5):** *Dado* uma inscrição cancelada pela IS e outra por desistência, *então* as telas mostram "Cancelada pela IS" na primeira e "Desistência" na segunda.
+
 ## 5. Fora de escopo
 
 - Marcar atividades, progresso, prazos e o efeito da pausa sobre a marcação: **F5**.
@@ -138,6 +159,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 - Não existem avançar etapa, etapa atual calculada nem inscrição em lote.
 - As transições de inscrição estão em `trilhas/views.py`; pela constituição (Art. 7.5), devem ir para um módulo de regras, como o `trilhas/regras.py` da F3.
 - O empreendedor já vê só as inscrições do próprio empreendimento, sem as canceladas.
+- **Revisão v0.5 (2026-11-24), ainda não implementada:** não existe desistência, e a inscrição não guarda quem cancelou.
 
 ## 7. Decisões
 
@@ -152,3 +174,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 | 7.7 | A reativação grava data? | Sim, como as demais mudanças de status (A-14). |
 | 7.8 | O que acontece com a data e o motivo quando a inscrição muda de novo? | O valor novo substitui o anterior (3.5.4). O histórico de cada mudança depende de auditoria, adiada no MVP. |
 | 7.9 | A F4 vem antes da F2? | Sim. Até a F2 existir, a entrada para a tela de etapa fica na tela de inscrições; a F2 acrescenta as entradas pelo perfil e pela lista. |
+| 7.10 | O empreendedor pode desistir? De quais trilhas? | Sim, só das personalizadas (v0.5, segunda reunião com a IS). O professor não cancela nada. |
+| 7.11 | A desistência pede motivo? | Não (v0.5). |
+| 7.12 | Pode desistir de inscrição pausada? | [ASSUMIDO] Sim, como na ativa (pendência 10 da spec mãe). |
+| 7.13 | Os prazos devem continuar correndo com a inscrição pausada (3.6.2)? | Decidido antes da v0.5: sim. **A rever com a IS:** o mais comum seria congelar os prazos durante a pausa. |
