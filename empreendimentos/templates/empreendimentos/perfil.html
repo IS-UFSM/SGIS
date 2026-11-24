@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ empreendimento.nome }} — SGIS{% endblock %}
+
+{% block conteudo %}
+{% include 'partials/header.html' %}
+
+<main class="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+  {% if e_is %}
+    <a href="{% url 'empreendimentos:lista' %}" class="text-sm font-medium text-brand hover:underline">← Empreendimentos</a>
+  {% endif %}
+
+  <div class="mt-3 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">{{ empreendimento.nome }}</h1>
+      <p class="text-slate-500 mt-1 text-sm">{{ empreendimento.get_tipo_display }}</p>
+    </div>
+    {% if empreendimento.ativo %}
+      <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">Ativo</span>
+    {% else %}
+      <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-200 text-slate-700">Desativado</span>
+    {% endif %}
+  </div>
+
+  <section class="mt-6 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Dados</h2>
+    <dl class="mt-3 grid gap-4 sm:grid-cols-2 text-sm">
+      <div class="sm:col-span-2">
+        <dt class="font-medium text-slate-500">Descrição</dt>
+        <dd class="mt-1 text-slate-800">{{ empreendimento.descricao|default:"—"|linebreaksbr }}</dd>
+      </div>
+      <div>
+        <dt class="font-medium text-slate-500">E-mail de contato</dt>
+        <dd class="mt-1 text-slate-800 break-all">{{ empreendimento.email_contato|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="font-medium text-slate-500">Telefone de contato</dt>
+        <dd class="mt-1 text-slate-800">{{ empreendimento.telefone_contato|default:"—" }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="mt-6 grid gap-6 sm:grid-cols-2">
+    <section class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+      <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Conta do empreendimento</h2>
+      <p class="mt-2 font-semibold text-slate-900">{{ empreendimento.representante.nome }}</p>
+      <p class="text-sm text-slate-600 break-all">{{ empreendimento.representante.email }}</p>
+      <p class="mt-2 text-xs text-slate-500">Compartilhada pelas pessoas do empreendimento.</p>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+      <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Etapa atual</h2>
+      <p class="mt-2 text-xl font-bold text-slate-900">{{ etapa_atual }}</p>
+      {% if e_is %}
+        <a href="{% url 'trilhas:etapa' empreendimento.pk %}" class="mt-2 inline-block text-sm font-semibold text-brand hover:underline">Gerenciar etapa</a>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="mt-8">
+    <h2 class="font-semibold text-slate-900">Trilhas ({{ inscricoes|length }})</h2>
+    <p class="text-sm text-slate-500">Trilhas em que está ou esteve inscrito.</p>
+
+    <div class="mt-3 space-y-3">
+      {% for inscricao in inscricoes %}
+        <article class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            {% if inscricao.trilha_id in trilhas_com_link %}
+              <a href="{% url 'trilhas:detalhe' inscricao.trilha_id %}" class="font-semibold text-slate-900 hover:text-brand hover:underline">{{ inscricao.trilha.titulo }}</a>
+            {% else %}
+              <p class="font-semibold text-slate-900">{{ inscricao.trilha.titulo }}</p>
+            {% endif %}
+            <p class="mt-1 text-xs text-slate-500">
+              {% if inscricao.trilha.e_de_etapa %}Trilha de etapa{% else %}Trilha personalizada{% endif %}
+              · inscrito em {{ inscricao.inscrito_em|date:"d/m/Y" }}
+            </p>
+          </div>
+          {% if inscricao.status == 'ativa' %}
+            <span class="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">{{ inscricao.get_status_display }}</span>
+          {% elif inscricao.status == 'pausada' %}
+            <span class="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">{{ inscricao.get_status_display }}</span>
+          {% elif inscricao.status == 'concluida' %}
+            <span class="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full bg-sky-100 text-sky-800">{{ inscricao.get_status_display }}</span>
+          {% else %}
+            <span class="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-200 text-slate-700">{{ inscricao.get_status_display }}</span>
+          {% endif %}
+        </article>
+      {% empty %}
+        <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+          <p class="text-slate-600 font-medium">Nenhuma inscrição.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

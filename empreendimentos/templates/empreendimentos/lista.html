@@ -54,7 +54,7 @@
         <tbody class="divide-y divide-slate-100">
           {% for empreendimento in empreendimentos %}
             <tr>
-              <td class="px-4 py-3 font-semibold text-slate-900">{{ empreendimento.nome }}</td>
+              <td class="px-4 py-3 font-semibold text-slate-900"><a href="{% url 'empreendimentos:perfil' empreendimento.pk %}" class="hover:text-brand hover:underline">{{ empreendimento.nome }}</a></td>
               <td class="px-4 py-3 text-slate-600">{{ empreendimento.get_tipo_display }}</td>
               <td class="px-4 py-3">
                 <p class="text-slate-700">{{ empreendimento.representante.nome }}</p>
