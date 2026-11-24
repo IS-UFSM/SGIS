@@ -48,7 +48,7 @@ def dados_empreendedor(**extra):
         'email': 'joao@atelie.com',
         'papel': Usuario.Papel.EMPREENDEDOR,
         'empreendimento-nome': 'Ateliê da Praça',
-        'empreendimento-tipo': 'Artesanato',
+        'empreendimento-tipo': 'coletivo',
         'empreendimento-descricao': 'Peças feitas à mão.',
         **extra,
     })
@@ -202,7 +202,7 @@ class CriacaoDeContasTests(TestCase):
 
     def test_a08_dados_do_empreendimento_sao_ignorados_para_professor(self):
         resposta = self.client.post(reverse('criar_usuario'), dados_conta(**{
-            'empreendimento-nome': 'Não deveria existir', 'empreendimento-tipo': 'Teste',
+            'empreendimento-nome': 'Não deveria existir', 'empreendimento-tipo': 'mei',
         }))
 
         self.assertRedirects(resposta, reverse('criar_usuario'))
@@ -216,7 +216,7 @@ class CriacaoDeContasTests(TestCase):
         """
         self.client.post(reverse('criar_usuario'), dados_empreendedor())
         conta = Usuario.objects.get(email='joao@atelie.com')
-        empreendimento = conta.empreendimentos.get()
+        empreendimento = conta.empreendimento
         self.assertTrue(conta.deve_trocar_senha)
         self.assertEqual(
             list(empreendimento.inscricoes.values_list('trilha__etapa', flat=True)),
@@ -623,7 +623,7 @@ class GestaoDeContasPeloAdminTests(TestCase):
             papel=Usuario.Papel.EMPREENDEDOR,
             **{
                 'empreendimento-nome': 'Ateliê da Praça',
-                'empreendimento-tipo': 'Artesanato',
+                'empreendimento-tipo': 'coletivo',
                 'empreendimento-descricao': 'Peças feitas à mão.',
             },
         )

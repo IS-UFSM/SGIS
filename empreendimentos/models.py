@@ -1,33 +1,40 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+
+from usuarios.models import Usuario
 
 
 class Empreendimento(models.Model):
     """Empreendimento acompanhado pela incubadora."""
 
+    class Tipo(models.TextChoices):
+        """EMP-01: lista fechada (decisão 7.1 converte os tipos em texto livre)."""
+
+        MEI = 'mei', 'MEI'
+        ASSOCIACAO = 'associacao', 'Associação'
+        COLETIVO = 'coletivo', 'Coletivo'
+        OUTRO = 'outro', 'Outro'
+
     nome = models.CharField('nome', max_length=200)
-    tipo = models.CharField('tipo', max_length=100)
+    tipo = models.CharField('tipo', max_length=20, choices=Tipo.choices)
     descricao = models.TextField('descrição', blank=True)
+    # 3.1.2: contato geral do empreendimento; as pessoas ficam nos contatos (T7).
+    email_contato = models.EmailField('e-mail de contato', blank=True)
+    telefone_contato = models.CharField('telefone de contato', max_length=30, blank=True)
     desativado_em = models.DateTimeField(
         'desativado em',
         null=True,
         blank=True,
         help_text='Nulo = ativo. Preenchido = data da desativação.',
     )
-    representante = models.ForeignKey(
+    # RN-01 e RN-02: uma única conta por empreendimento, e cada conta representa um só.
+    representante = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name='empreendimentos',
-        verbose_name='representante',
-        help_text='Empreendedor responsável pelo empreendimento.',
-    )
-    usuario_professor_supervisor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='empreendimentos_supervisionados',
-        verbose_name='professor supervisor',
+        related_name='empreendimento',
+        verbose_name='conta do empreendimento',
+        help_text='Conta de empreendedor, compartilhada pelas pessoas do empreendimento.',
     )
 
     class Meta:
@@ -36,6 +43,15 @@ class Empreendimento(models.Model):
 
     def __str__(self):
         return self.nome
+
+    def clean(self):
+        """RN-01: só uma conta de empreendedor pode ser representante (A-04)."""
+        super().clean()
+        if self.representante_id and self.representante.papel != Usuario.Papel.EMPREENDEDOR:
+            raise ValidationError({'representante': ValidationError(
+                'Só uma conta de empreendedor pode representar um empreendimento.',
+                code='papel_invalido',
+            )})
 
     @property
     def ativo(self):

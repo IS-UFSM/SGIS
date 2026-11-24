@@ -97,17 +97,19 @@ class Command(BaseCommand):
         empreendimentos_data = [
             {
                 'nome': 'Atelie Costura Solidaria',
-                'tipo': 'Artesanato / Textil',
+                'tipo': Empreendimento.Tipo.COLETIVO,
                 'descricao': 'Producao artesanal sustentavel e geracao de renda para costureiras locais.',
+                'email_contato': 'contato@costurasolidaria.example',
+                'telefone_contato': '(55) 3220-0001',
                 'representante': usuarios['ana.costura@sgis.com'],
-                'usuario_professor_supervisor': usuarios['professor.carlos@sgis.com'],
             },
             {
                 'nome': 'Horta Urbana Verde Vivo',
-                'tipo': 'Agroecologia / Alimentos',
+                'tipo': Empreendimento.Tipo.ASSOCIACAO,
                 'descricao': 'Cultivo comunitario de hortalicas organicas com venda direta ao consumidor.',
+                'email_contato': 'contato@verdevivo.example',
+                'telefone_contato': '(55) 3220-0002',
                 'representante': usuarios['joao.horta@sgis.com'],
-                'usuario_professor_supervisor': usuarios['professora.marina@sgis.com'],
             },
         ]
 
