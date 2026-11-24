@@ -51,7 +51,7 @@ Antes de dizer que uma tarefa está pronta: rode os testes e o `makemigrations -
 
 ## Convenções de código
 
-- **Português** em nomes de domínio, interface, mensagens e commits. Siga o vocabulário da spec: **empreendimento** é o negócio, **empreendedor** é a pessoa (papel `empreendedor`), **representante** é o vínculo.
+- **Português** em nomes de domínio, interface, mensagens e commits. Siga o vocabulário da spec: **empreendimento** é o negócio, **empreendedor** é o papel da conta do empreendimento, compartilhada pelas pessoas dele (papel `empreendedor`; nas telas, "conta do empreendimento"), **representante** é o vínculo entre a conta e o empreendimento, **contato** é uma pessoa do empreendimento, sem login.
 - **Permissão no servidor:** use `@papel_requerido(Usuario.Papel.X)` (de `usuarios/decorators.py`) nas views restritas a um papel. Nunca confie em esconder um link.
 - **Campos definidos pelo servidor** (dono, autor, status, papel) nunca vêm do formulário: defina-os na view, depois de `form.save(commit=False)`.
 - **Nada se apaga:** use `on_delete=models.PROTECT` entre registros de negócio; desative, cancele ou arquive em vez de apagar.

@@ -1,6 +1,6 @@
 # SGIS — Constituição
 
-**Estado:** Aprovado · **Versão:** 1.1 · **Data:** 2026-10-23
+**Estado:** rascunho (versão 1.2 aguardando aprovação; a 1.1 foi aprovada em 2026-10-23) · **Versão:** 1.2 · **Data:** 2026-11-24
 
 Princípios que valem para **todo** o projeto. Nenhuma spec, plano, tarefa ou PR pode contrariá-los. Quando uma regra daqui conflitar com qualquer outro documento, vale esta.
 
@@ -44,7 +44,7 @@ As regras de negócio ficam na spec mãe (`SGIS_SPEC_MVP_v0.4.md`). Aqui ficam a
 
 ## Artigo 6 · Testes
 
-1. Todo requisito **M** e toda regra de negócio têm pelo menos um teste automatizado. Toda jornada (J-1 a J-8) tem um teste de ponta a ponta.
+1. Todo requisito **M** e toda regra de negócio têm pelo menos um teste automatizado. Toda jornada da spec mãe (seção 9) tem um teste de ponta a ponta.
 2. O nome ou a docstring do teste cita o ID que ele cobre: `test_exe06_devolver_sem_comentario_e_recusado`.
 3. Todo controle de acesso tem teste do caso **negado**, não só do permitido.
 4. A `main` só recebe código com todos os testes passando.
@@ -62,7 +62,7 @@ As regras de negócio ficam na spec mãe (`SGIS_SPEC_MVP_v0.4.md`). Aqui ficam a
 ## Artigo 8 · Linguagem
 
 1. Interface, documentação, mensagens de commit e nomes de domínio no código em **português**, seguindo o vocabulário da spec mãe (seção 2).
-2. Uma palavra, um significado. **Empreendimento** é o negócio; **empreendedor** é a pessoa; **representante** é o vínculo entre eles. Termo novo entra primeiro no vocabulário da spec.
+2. Uma palavra, um significado. **Empreendimento** é o negócio; **empreendedor** é o papel da **conta do empreendimento**, um login único compartilhado pelas pessoas dele; **representante** é o vínculo entre essa conta e o empreendimento; **contato** é uma pessoa do empreendimento, sem login. Termo novo entra primeiro no vocabulário da spec.
 3. Termos técnicos do Django e do Python ficam como são (`models`, `views`, `ForeignKey`).
 
 ## Artigo 9 · Fluxo de trabalho
@@ -121,3 +121,4 @@ Esta constituição só muda com a aprovação do responsável pelo projeto, com
 |---|---|---|
 | 1.0 | 2026-10-23 | Primeira versão. |
 | 1.1 | 2026-10-23 | Aprovação pelo responsável pelo projeto (9.2, 9.3, 9.4 e 11); documentos podem ir direto na `main`. |
+| 1.2 | 2026-11-24 | Alinhamento com a spec mãe v0.5: no Art. 8.2, empreendedor passa a ser o papel da conta compartilhada do empreendimento, e entra o termo contato; no Art. 6.1, as jornadas são as da seção 9 da spec mãe, sem numeração fixa. |

@@ -154,7 +154,7 @@ O projeto segue **Spec Driven Development**, com as regras na [constituição](s
 Convenções:
 - Branches `docs/…`, `feat/…`, `fix/…`, `refactor/…`.
 - Commits no formato `tipo: descrição`, em português (`feat: trilhas por etapa (F3 · T1)`).
-- Código, interface e documentos em português, com o vocabulário da spec: **empreendimento** é o negócio, **empreendedor** é a pessoa, **representante** é o vínculo entre os dois.
+- Código, interface e documentos em português, com o vocabulário da spec: **empreendimento** é o negócio, **empreendedor** é o papel da conta do empreendimento, compartilhada pelas pessoas dele, **representante** é o vínculo entre a conta e o empreendimento, **contato** é uma pessoa do empreendimento, sem login.
 - Permissões sempre checadas no servidor; registros de negócio nunca são apagados (desativar, cancelar, arquivar).
 
 **Ferramentas de IA** (Claude Code, OpenCode e outras) seguem o [`AGENTS.md`](AGENTS.md): trabalham uma tarefa por vez, a partir da spec e do plano aprovados, e perguntam quando a spec tem lacuna.
