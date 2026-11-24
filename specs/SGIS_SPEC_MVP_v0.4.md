@@ -1,6 +1,6 @@
 # SGIS — Especificação do MVP
 
-**Versão:** 0.5.2 (revisão após a segunda reunião com a IS; ver seção 14)
+**Versão:** 0.5.3 (revisão após a segunda reunião com a IS; ver seção 14)
 
 **Substitui:** `_arquivo/SGIS_SPEC_MVP.md` (v0.3) e, para o MVP, o `_arquivo/MODELAGEM_BANCO.md`. A `_arquivo/SGIS_SPEC_COMPLETA.md` continua como registro da visão inicial, mas vários módulos dela foram descartados (ver seção 12).
 
@@ -90,7 +90,7 @@ Cada usuário tem um único papel.
 |---|---|---|
 | EMP-01 | A IS cadastra e edita o empreendimento: nome, tipo (MEI, Associação, Coletivo, Outro), descrição, e-mail e telefone de contato. | M |
 | EMP-02 | Cada empreendimento tem **uma única conta** (papel empreendedor), o seu representante, compartilhada pelas pessoas do empreendimento. | M |
-| EMP-07 | **Contatos:** o empreendimento tem uma lista de contatos, cada um com **nome, e-mail e telefone (obrigatórios)** e função (opcional); um deles é marcado como **responsável** pelo empreendimento. O responsável **pode mudar**: trocar de responsável é marcar outro contato, sem mexer na conta do empreendimento. Contatos não fazem login e não são ligados a usuários. **Só a IS** cria e edita os contatos. | M |
+| EMP-07 | **Contatos:** o empreendimento tem uma lista de contatos, cada um com **nome, e-mail e telefone (obrigatórios)** e função (opcional); um deles é marcado como **responsável** pelo empreendimento. O responsável **pode mudar**: trocar de responsável é marcar outro contato, sem mexer na conta do empreendimento. Contatos não fazem login e não são ligados a usuários. **Só a IS** cria, edita e **remove** os contatos. Remover apaga o contato de vez, com confirmação: contato não é registro de negócio. | M |
 | EMP-03 | A IS lista os empreendimentos com filtros: ativos, desativados e por etapa atual. | M |
 | EMP-04 | **Perfil do empreendimento:** dados, contatos, etapa atual, níveis por eixo, trilhas em que está inscrito (com status) e prontuário. | M |
 | EMP-05 | Quem vê o perfil: a IS (todos), os professores que o atendem e o próprio representante. | M |
@@ -215,7 +215,7 @@ A **liberação** (EXE-12) não muda o status: a execução continua *Pendente* 
 | Empreendimentos | criar, junto com o empreendedor | — | — | ✔ | ✔ |
 | Empreendimentos | editar, desativar | — | — | ✔ | — |
 | Contatos do empreendimento | ver | o próprio | dos que atende | todos | — |
-| Contatos do empreendimento | criar, editar | — | — | ✔ | — |
+| Contatos do empreendimento | criar, editar, remover | — | — | ✔ | — |
 | Trilhas de etapa | criar, editar, publicar, arquivar | — | — | ✔ | — |
 | Trilhas de etapa | ver | as inscritas (atual e anteriores) | ✔ | ✔ | — |
 | Trilhas personalizadas | criar, editar, publicar, arquivar | — | as suas | as suas | — |
@@ -411,7 +411,7 @@ Cada jornada é um teste de ponta a ponta.
 | 11 | Liberar uma atividade oculta para todos os inscritos de uma vez | Fora por ora; a liberação é por empreendimento. Pode voltar como atalho (S) |
 | 12 | Os prazos correm com a inscrição pausada? | **Decidido** (2026-11-24): não. Ao reativar, os prazos são adiados pelo tempo da pausa (INS-08). Se o **prazo fixo** também é adiado fica **adiado** para depois; proposta: sim |
 | 13 | O dono pode liberar uma atividade (EXE-12) com a inscrição pausada? | **Adiada** (2026-11-24): a resolver depois, junto com as demais questões da pausa. Proposta: não |
-| 14 | Um contato pode ser removido? | [Confirmar] Proposta: sim, já que contato não é registro de negócio |
+| 14 | Um contato pode ser removido? | **Decidido** (2026-11-24): sim, pela IS, com confirmação. O contato é apagado de vez, porque não é registro de negócio |
 
 ---
 
@@ -459,3 +459,4 @@ Cada jornada é um teste de ponta a ponta.
 | 0.5.0 | 2026-11-19 | Segunda reunião com a IS: banners (F10), liberação de atividades (EXE-12), desistência (INS-12), conta do empreendimento com contatos (EMP-07), texto formatado (TXT-01); atividade sem tipo e endereço (ver seção 14). |
 | 0.5.1 | 2026-11-24 | Banners com uma flag de público por tipo de usuário (BAN-06). Contatos com um **responsável** que pode mudar, e contato provisório na migração (EMP-07). Prazos não correm com a inscrição pausada (INS-08, EXE-02; pendência 12). |
 | 0.5.2 | 2026-11-24 | Contatos: só a IS edita; nome, e-mail e telefone obrigatórios; contato sem vínculo com usuário e não necessariamente uma pessoa (EMP-07). Questões da pausa adiadas (pendências 10, 12 e 13). |
+| 0.5.3 | 2026-11-24 | A IS pode remover contatos, que são apagados de vez (EMP-07; pendência 14). |
