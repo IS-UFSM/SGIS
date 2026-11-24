@@ -19,6 +19,7 @@ urlpatterns = [
     re_path(r'^usuarios/(?P<pk>\d+)/(?P<acao>desativar|reativar)/$', views.alterar_conta_view,
             name='alterar_conta'),
     path('conta/senha/', views.trocar_senha_view, name='trocar_senha'),
+    path('empreendimentos/', include('empreendimentos.urls')),
     path('trilhas/', include('trilhas.urls')),
     path('', views.home_view, name='home'),
 ]

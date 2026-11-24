@@ -2,7 +2,12 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
+from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
+from django.utils import timezone
 
+from trilhas import regras as regras_trilhas
+from trilhas.models import Inscricao, Trilha
 from usuarios import regras as regras_usuarios
 from usuarios.models import Usuario
 
@@ -90,3 +95,81 @@ class MigracaoDoTipoTests(TransactionTestCase):
             self.assertEqual(
                 (restaurado.tipo, restaurado.descricao), (original.tipo, original.descricao),
             )
+
+
+class ListaTests(TestCase):
+    """F2 · T2: EMP-03 (spec 3.4), a lista da IS com filtros e etapa calculada."""
+
+    url = reverse('empreendimentos:lista')
+
+    def setUp(self):
+        # Todo empreendimento novo entra na Pré-incubação (signal da F4).
+        Trilha.objects.exclude(etapa='').update(status=Trilha.Status.PUBLICADA)
+        self.is_user = criar_conta('is@ufsm.br', papel=Usuario.Papel.IS)
+        self.pre = self.criar('Ateliê', 'a@a.com')
+        self.incubado = self.criar('Brechó', 'b@b.com')
+        regras_trilhas.avancar_etapa(self.incubado, self.is_user, Trilha.Etapa.PRE_INCUBACAO)
+        self.desativado = self.criar('Cozinha', 'c@c.com')
+        self.desativado.desativado_em = timezone.now()
+        self.desativado.save()
+        self.sem_etapa = self.criar('Doceria', 'd@d.com')
+        self.sem_etapa.inscricoes.update(status=Inscricao.Status.CANCELADA)
+        self.client.force_login(self.is_user)
+
+    def criar(self, nome, email):
+        return Empreendimento.objects.create(
+            nome=nome, tipo=Empreendimento.Tipo.COLETIVO, representante=criar_conta(email),
+        )
+
+    def listados(self, **filtros):
+        resposta = self.client.get(self.url, filtros)
+        self.assertEqual(resposta.status_code, 200)
+        return [e.nome for e in resposta.context['empreendimentos']]
+
+    def test_a06_filtros_se_combinam(self):
+        self.assertEqual(self.listados(), ['Ateliê', 'Brechó', 'Cozinha', 'Doceria'])
+        self.assertEqual(self.listados(situacao='desativados'), ['Cozinha'])
+        self.assertEqual(self.listados(situacao='ativos'), ['Ateliê', 'Brechó', 'Doceria'])
+        self.assertEqual(self.listados(etapa=Trilha.Etapa.PRE_INCUBACAO), ['Ateliê', 'Cozinha'])
+        self.assertEqual(self.listados(etapa=Trilha.Etapa.INCUBACAO), ['Brechó'])
+        self.assertEqual(self.listados(etapa='sem'), ['Doceria'])
+        self.assertEqual(
+            self.listados(situacao='ativos', etapa=Trilha.Etapa.PRE_INCUBACAO), ['Ateliê'],
+        )
+        self.assertEqual(self.listados(situacao='desativados', etapa='sem'), [])
+        # Filtro desconhecido é ignorado, como na lista de trilhas.
+        self.assertEqual(len(self.listados(situacao='x', etapa='y')), 4)
+
+    def test_a07_lista_mostra_etapa_calculada(self):
+        resposta = self.client.get(self.url)
+        etapas = {e.nome: e.etapa_rotulo for e in resposta.context['empreendimentos']}
+        self.assertEqual(etapas, {
+            'Ateliê': 'Pré-incubação', 'Brechó': 'Incubação',
+            'Cozinha': 'Pré-incubação', 'Doceria': 'Sem etapa',
+        })
+        self.assertContains(resposta, 'Incubação')
+        self.assertContains(resposta, reverse('trilhas:etapa', args=[self.incubado.pk]))
+        # Nada de etapa gravada no empreendimento (INS-05).
+        campos = {campo.name for campo in Empreendimento._meta.get_fields()}
+        self.assertFalse(any('etapa' in nome for nome in campos))
+
+    def test_a07_etapa_nao_custa_uma_consulta_por_linha(self):
+        """Plano, seção 4: o número de consultas não cresce com o número de empreendimentos."""
+        with CaptureQueriesContext(connection) as antes:
+            self.client.get(self.url)
+        for numero in range(3):
+            self.criar(f'Extra {numero}', f'extra{numero}@e.com')
+        with CaptureQueriesContext(connection) as depois:
+            resposta = self.client.get(self.url)
+        self.assertEqual(len(resposta.context['empreendimentos']), 7)
+        self.assertEqual(len(depois), len(antes))
+
+    def test_lista_so_para_a_is(self):
+        """EMP-03: professor, conta do empreendimento e admin recebem 403."""
+        for papel in (Usuario.Papel.PROFESSOR, Usuario.Papel.EMPREENDEDOR, Usuario.Papel.ADMIN):
+            with self.subTest(papel=papel):
+                self.client.force_login(criar_conta(f'outro-{papel}@ufsm.br', papel=papel))
+                self.assertEqual(self.client.get(self.url).status_code, 403)
+
+    def test_cabecalho_da_is_tem_link_para_a_lista(self):
+        self.assertContains(self.client.get(reverse('home')), f'href="{self.url}"')
