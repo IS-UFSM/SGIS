@@ -173,3 +173,87 @@ class ListaTests(TestCase):
 
     def test_cabecalho_da_is_tem_link_para_a_lista(self):
         self.assertContains(self.client.get(reverse('home')), f'href="{self.url}"')
+
+
+class PerfilTests(TestCase):
+    """F2 · T3: EMP-04 e EMP-05 (spec 3.5), o perfil e quem o vê."""
+
+    def setUp(self):
+        self.is_user = criar_conta('is@ufsm.br', papel=Usuario.Papel.IS)
+        self.professor = criar_conta('x@ufsm.br', papel=Usuario.Papel.PROFESSOR)
+        self.conta_a = criar_conta('conta@atelie.com')
+        self.a = Empreendimento.objects.create(
+            nome='Ateliê', tipo=Empreendimento.Tipo.COLETIVO, descricao='Peças feitas à mão.',
+            email_contato='oi@atelie.com', telefone_contato='55 3220-0000',
+            representante=self.conta_a,
+        )
+        self.b = Empreendimento.objects.create(
+            nome='Horta', tipo=Empreendimento.Tipo.MEI, representante=criar_conta('conta@horta.com'),
+        )
+        # A esteve numa trilha do professor X; a inscrição já foi encerrada (A-09).
+        self.trilha = Trilha.objects.create(
+            titulo='Precificação', usuario_criador=self.professor, status=Trilha.Status.PUBLICADA,
+        )
+        Inscricao.objects.create(
+            empreendimento=self.a, trilha=self.trilha, status=Inscricao.Status.CANCELADA,
+        )
+
+    def url(self, empreendimento):
+        return reverse('empreendimentos:perfil', args=[empreendimento.pk])
+
+    def abrir(self, usuario, empreendimento):
+        self.client.force_login(usuario)
+        return self.client.get(self.url(empreendimento))
+
+    def test_a08_perfil_mostra_dados_contatos_etapa_e_inscricoes(self):
+        """Os contatos entram no perfil na T7 (EMP-07)."""
+        resposta = self.abrir(self.is_user, self.a)
+        self.assertEqual(resposta.status_code, 200)
+        for texto in (
+            'Ateliê', 'Coletivo', 'Peças feitas à mão.', 'oi@atelie.com', '55 3220-0000',
+            'Conta do empreendimento', 'conta@atelie.com',
+        ):
+            self.assertContains(resposta, texto)
+        self.assertEqual(resposta.context['etapa_atual'], 'Pré-incubação')
+        status = {i.trilha.titulo: i.status for i in resposta.context['inscricoes']}
+        self.assertEqual(status, {
+            'Pré-incubação': Inscricao.Status.ATIVA,
+            'Precificação': Inscricao.Status.CANCELADA,
+        })
+        self.assertContains(resposta, 'Cancelada')
+        self.assertContains(resposta, reverse('trilhas:etapa', args=[self.a.pk]))
+        self.assertContains(resposta, reverse('trilhas:detalhe', args=[self.trilha.pk]))
+
+    def test_a09_professor_ve_quem_atendeu_e_outro_recebe_403(self):
+        resposta = self.abrir(self.professor, self.a)
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, reverse('trilhas:detalhe', args=[self.trilha.pk]))
+        self.assertNotContains(resposta, reverse('trilhas:etapa', args=[self.a.pk]))  # só a IS
+
+        self.assertEqual(self.abrir(self.professor, self.b).status_code, 403)
+        outro = criar_conta('z@ufsm.br', papel=Usuario.Papel.PROFESSOR)
+        self.assertEqual(self.abrir(outro, self.a).status_code, 403)
+
+    def test_a10_representante_ve_o_proprio_e_admin_recebe_403(self):
+        resposta = self.abrir(self.conta_a, self.a)
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, f'href="{self.url(self.a)}"')  # "Meu empreendimento"
+        # A tela de etapa é só da IS.
+        self.assertNotContains(resposta, reverse('trilhas:etapa', args=[self.a.pk]))
+        self.assertEqual(self.abrir(self.conta_a, self.b).status_code, 403)
+
+        admin = criar_conta('admin@ufsm.br', papel=Usuario.Papel.ADMIN)
+        for empreendimento in (self.a, self.b):
+            with self.subTest(empreendimento=empreendimento.nome):
+                self.assertEqual(self.abrir(admin, empreendimento).status_code, 403)
+
+    def test_perfil_exige_login(self):
+        resposta = self.client.get(self.url(self.a))
+        self.assertEqual(resposta.status_code, 302)
+        self.assertIn(reverse('login'), resposta['Location'])
+
+    def test_lista_tem_link_para_o_perfil(self):
+        self.client.force_login(self.is_user)
+        resposta = self.client.get(reverse('empreendimentos:lista'))
+        self.assertContains(resposta, f'href="{self.url(self.a)}"')
+        self.assertContains(resposta, f'href="{self.url(self.b)}"')

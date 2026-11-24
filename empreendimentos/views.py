@@ -1,10 +1,13 @@
-from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404, render
 
 from trilhas import regras as regras_trilhas
 from trilhas.models import Trilha
 from usuarios.decorators import papel_requerido
 from usuarios.models import Usuario
 
+from . import regras
 from .models import Empreendimento
 
 # Filtro por situação na lista: valor do parâmetro -> (rótulo, filtro).
@@ -51,4 +54,32 @@ def lista_view(request):
         'situacao_atual': situacao,
         'etapas': FILTROS_ETAPA,
         'etapa_atual': etapa,
+    })
+
+
+@login_required
+def perfil_view(request, pk):
+    """EMP-04 e EMP-05 (spec 3.5): o perfil, para quem pode vê-lo; senão, 403 (A-08 a A-10)."""
+    empreendimento = get_object_or_404(
+        Empreendimento.objects.select_related('representante'), pk=pk,
+    )
+    if not regras.pode_ver(request.user, empreendimento):
+        raise PermissionDenied
+
+    inscricoes = list(
+        empreendimento.inscricoes.select_related('trilha').order_by('-inscrito_em')
+    )
+    # O nome da trilha só vira link para quem pode ver a trilha (plano, seção 6).
+    trilhas_com_link = set(
+        regras_trilhas.trilhas_visiveis(request.user)
+        .filter(pk__in=[inscricao.trilha_id for inscricao in inscricoes])
+        .values_list('pk', flat=True)
+    )
+    etapa = regras_trilhas.etapa_atual(empreendimento)
+    return render(request, 'empreendimentos/perfil.html', {
+        'empreendimento': empreendimento,
+        'etapa_atual': Trilha.Etapa(etapa).label if etapa else 'Sem etapa',
+        'inscricoes': inscricoes,
+        'trilhas_com_link': trilhas_com_link,
+        'e_is': request.user.papel == Usuario.Papel.IS,
     })

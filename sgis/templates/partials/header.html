@@ -32,6 +32,11 @@
         <a href="{% url 'trilhas:inscritas' %}" class="text-sm font-medium text-slate-600 hover:text-brand transition duration-150">
           Minhas trilhas
         </a>
+        {% if user.empreendimento %}
+          <a href="{% url 'empreendimentos:perfil' user.empreendimento.pk %}" class="text-sm font-medium text-slate-600 hover:text-brand transition duration-150">
+            Meu empreendimento
+          </a>
+        {% endif %}
       {% endif %}
 
       <span class="text-sm font-medium text-slate-700 hidden sm:inline">{{ user.nome }}</span>
