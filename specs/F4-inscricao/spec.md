@@ -64,7 +64,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 | Pausar | Ativa | Pausada | IS | Motivo opcional |
 | Reativar | Pausada | Ativa | IS | — |
 | Cancelar | Ativa, Pausada | Cancelada | IS, em qualquer trilha | Motivo opcional |
-| Desistir | Ativa, Pausada | Cancelada | Empreendedor, só em trilha personalizada do próprio empreendimento | Sem motivo, com confirmação (3.9) |
+| Desistir | Ativa (Pausada: adiada, 7.12) | Cancelada | Empreendedor, só em trilha personalizada do próprio empreendimento | Sem motivo, com confirmação (3.9) |
 | Concluir | Ativa | Concluída | Sistema, ao avançar etapa; IS, à mão, nas trilhas personalizadas | — |
 
 1. Uma inscrição concluída ou cancelada **não volta**. Para continuar, a IS faz uma inscrição nova (3.1.3).
@@ -83,7 +83,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 1. O empreendedor **vê** a trilha, mas **não marca** atividades (a marcação é da F5).
 2. Os prazos das atividades **não correm** durante a pausa: enquanto a inscrição está pausada, nenhuma atividade dela fica atrasada.
 3. Ao **reativar**, o prazo de cada execução ainda não concluída é **adiado** pelo número de dias em que a inscrição ficou pausada. Com várias pausas, os adiamentos se somam.
-4. O adiamento vale também para o **prazo fixo** [ASSUMIDO]: para aquela inscrição, a data fixa anda junto com a pausa.
+4. Se o adiamento vale também para o **prazo fixo** fica para depois (7.14).
 5. As execuções e seus prazos são da **F5**; esta feature define a regra, e a F5 a aplica.
 
 ### 3.7 O que o empreendedor vê
@@ -95,7 +95,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 2. Os que já estão inscritos (ativa ou pausada) ou estão desativados são ignorados, e a IS vê quantos foram inscritos e quantos foram ignorados.
 
 ### 3.9 Desistência (INS-12)
-1. O empreendedor **desiste** de uma inscrição do **próprio** empreendimento numa trilha **personalizada**, ativa ou pausada [ASSUMIDO: também pausada; pendência 10 da spec mãe].
+1. O empreendedor **desiste** de uma inscrição do **próprio** empreendimento numa trilha **personalizada**, com a inscrição **ativa**. Desistir de inscrição **pausada** fica para depois (7.12).
 2. **Não** desiste de trilha de etapa: a opção não aparece, e uma tentativa forjada é recusada. Sair da incubação é decisão da IS.
 3. A desistência pede **confirmação** e **não pede motivo**. Ela não altera o motivo já guardado na inscrição [ASSUMIDO].
 4. A inscrição fica **Cancelada**, com a data e com o próprio empreendimento como quem cancelou (3.5.5). Como qualquer cancelada, não volta: para retomar, a IS faz uma inscrição nova (3.1.3).
@@ -140,7 +140,7 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 
 **Desistência e cancelamento**
 - **A-20 (INS-12):** *Dado* A inscrito, como Ativa, numa trilha personalizada, *quando* a conta de A desiste e confirma, *então* a inscrição fica Cancelada, com a data, registrada como desistência, e a IS a vê como "Desistência".
-- **A-21 (INS-12):** *Dado* a inscrição de A pausada numa trilha personalizada, *quando* a conta de A desiste, *então* a inscrição fica Cancelada.
+- **A-21 (INS-12):** *Desistência de inscrição pausada:* critério adiado junto com a decisão 7.12.
 - **A-22 (INS-12, RN-18):** *Dado* A na trilha de etapa, *então* a opção de desistir não aparece, e uma desistência forjada é recusada sem mudar nada.
 - **A-23 (INS-12, INS-09):** *Dado* a conta de B, *quando* tenta desistir de uma inscrição de A, *então* o acesso é negado e nada muda.
 - **A-24 (INS-12):** *Dado* uma inscrição concluída ou cancelada, *quando* a conta do empreendimento tenta desistir, *então* o sistema recusa.
@@ -180,6 +180,6 @@ A IS decide em quais trilhas cada empreendimento entra e conduz o empreendimento
 | 7.9 | A F4 vem antes da F2? | Sim. Até a F2 existir, a entrada para a tela de etapa fica na tela de inscrições; a F2 acrescenta as entradas pelo perfil e pela lista. |
 | 7.10 | O empreendedor pode desistir? De quais trilhas? | Sim, só das personalizadas (v0.5, segunda reunião com a IS). O professor não cancela nada. |
 | 7.11 | A desistência pede motivo? | Não (v0.5). |
-| 7.12 | Pode desistir de inscrição pausada? | [ASSUMIDO] Sim, como na ativa (pendência 10 da spec mãe). |
+| 7.12 | Pode desistir de inscrição pausada? | **Adiada** (2026-11-24), com as demais questões da pausa (pendência 10 da spec mãe). Proposta: sim, como na ativa. Enquanto isso, só a inscrição ativa admite desistência. |
 | 7.13 | Os prazos devem continuar correndo com a inscrição pausada (3.6.2)? | **Não** (decisão de 2026-11-24, que substitui a anterior). Ao reativar, os prazos são adiados pelo tempo da pausa (3.6). |
-| 7.14 | O prazo fixo também é adiado pela pausa? | [ASSUMIDO] Sim, para que nenhuma atividade vença enquanto a inscrição está parada. |
+| 7.14 | O prazo fixo também é adiado pela pausa? | **Adiada** (2026-11-24), com as demais questões da pausa (pendência 12 da spec mãe). Proposta: sim. |

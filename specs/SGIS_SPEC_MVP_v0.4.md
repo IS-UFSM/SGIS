@@ -1,6 +1,6 @@
 # SGIS — Especificação do MVP
 
-**Versão:** 0.5.1 (revisão após a segunda reunião com a IS; ver seção 14)
+**Versão:** 0.5.2 (revisão após a segunda reunião com a IS; ver seção 14)
 
 **Substitui:** `_arquivo/SGIS_SPEC_MVP.md` (v0.3) e, para o MVP, o `_arquivo/MODELAGEM_BANCO.md`. A `_arquivo/SGIS_SPEC_COMPLETA.md` continua como registro da visão inicial, mas vários módulos dela foram descartados (ver seção 12).
 
@@ -22,7 +22,7 @@ Um sistema fechado em que a Incubadora Social (IS) organiza as etapas da incuba�
 |---|---|
 | **Empreendimento** | O negócio incubado (MEI, associação, coletivo…). |
 | **Empreendedor** | Papel da **conta do empreendimento**: um login único, compartilhado pelas pessoas do empreendimento. A conta é o **representante** do empreendimento. Nas telas, aparece como "conta do empreendimento". |
-| **Contato** | Pessoa do empreendimento registrada para contato (nome, função, e-mail, telefone). Não faz login. Um dos contatos é o **responsável** atual pelo empreendimento, que pode mudar com o tempo. |
+| **Contato** | Registro de contato do empreendimento (nome, função, e-mail, telefone). Costuma ser uma pessoa, mas não precisa ser (pode ser um setor ou um e-mail geral). Não faz login e não tem vínculo com nenhum usuário do sistema. Um dos contatos é o **responsável** atual pelo empreendimento, que pode mudar com o tempo. |
 | **Etapa** | Fase da incubação: **Pré-incubação → Incubação → Desincubação**. [Confirmar o nome da última etapa] |
 | **Trilha de etapa** | Trilha criada pela IS, comum a todos os empreendimentos daquela etapa. Existe uma por etapa. |
 | **Trilha personalizada** | Trilha criada por um professor ou pela IS, sem etapa, em que só alguns empreendimentos são inscritos. |
@@ -90,7 +90,7 @@ Cada usuário tem um único papel.
 |---|---|---|
 | EMP-01 | A IS cadastra e edita o empreendimento: nome, tipo (MEI, Associação, Coletivo, Outro), descrição, e-mail e telefone de contato. | M |
 | EMP-02 | Cada empreendimento tem **uma única conta** (papel empreendedor), o seu representante, compartilhada pelas pessoas do empreendimento. | M |
-| EMP-07 | **Contatos:** o empreendimento tem uma lista de pessoas para contato, cada uma com nome, função, e-mail e telefone; uma delas é marcada como **responsável** pelo empreendimento. O responsável **pode mudar**: trocar de responsável é marcar outro contato, sem mexer na conta do empreendimento. Contatos não fazem login. Quem edita a lista: [Confirmar] (ver seção 13). | M |
+| EMP-07 | **Contatos:** o empreendimento tem uma lista de contatos, cada um com **nome, e-mail e telefone (obrigatórios)** e função (opcional); um deles é marcado como **responsável** pelo empreendimento. O responsável **pode mudar**: trocar de responsável é marcar outro contato, sem mexer na conta do empreendimento. Contatos não fazem login e não são ligados a usuários. **Só a IS** cria e edita os contatos. | M |
 | EMP-03 | A IS lista os empreendimentos com filtros: ativos, desativados e por etapa atual. | M |
 | EMP-04 | **Perfil do empreendimento:** dados, contatos, etapa atual, níveis por eixo, trilhas em que está inscrito (com status) e prontuário. | M |
 | EMP-05 | Quem vê o perfil: a IS (todos), os professores que o atendem e o próprio representante. | M |
@@ -121,7 +121,7 @@ Cada usuário tem um único papel.
 | INS-04 | O empreendimento está em **uma única etapa por vez**: no máximo uma inscrição ativa ou pausada em trilha de etapa. | M |
 | INS-05 | A **etapa atual** é a trilha de etapa com inscrição ativa ou pausada. Não é guardada em campo próprio. | M |
 | INS-06 | Status da inscrição: **Ativa, Pausada, Concluída, Cancelada**. A IS pausa, reativa ou cancela qualquer inscrição, com motivo opcional. O professor não cancela inscrições. O histórico é preservado. | M |
-| INS-12 | **Desistência:** o empreendedor cancela a inscrição do próprio empreendimento numa trilha **personalizada**, ativa ou pausada [ASSUMIDO: também pausada], com confirmação e sem motivo. Não desiste de trilha de etapa. A inscrição fica *Cancelada*, e a tela distingue "Desistência" de "Cancelada pela IS". | M |
+| INS-12 | **Desistência:** o empreendedor cancela a inscrição do próprio empreendimento numa trilha **personalizada**, ativa, com confirmação e sem motivo. Desistir de inscrição **pausada**: a resolver depois (pendência 10). Não desiste de trilha de etapa. A inscrição fica *Cancelada*, e a tela distingue "Desistência" de "Cancelada pela IS". | M |
 | INS-07 | Não pode haver duas inscrições ativas ou pausadas do mesmo empreendimento na mesma trilha. | M |
 | INS-08 | Com a inscrição pausada, o empreendedor vê a trilha, mas não marca atividades. Os prazos **não correm**: ao reativar, os prazos das execuções não concluídas são adiados pelo tempo que a inscrição ficou pausada, e nada fica atrasado durante a pausa. | M |
 | INS-09 | O empreendedor vê só as inscrições do próprio empreendimento. | M |
@@ -215,7 +215,7 @@ A **liberação** (EXE-12) não muda o status: a execução continua *Pendente* 
 | Empreendimentos | criar, junto com o empreendedor | — | — | ✔ | ✔ |
 | Empreendimentos | editar, desativar | — | — | ✔ | — |
 | Contatos do empreendimento | ver | o próprio | dos que atende | todos | — |
-| Contatos do empreendimento | criar, editar | [Confirmar] | — | ✔ | — |
+| Contatos do empreendimento | criar, editar | — | — | ✔ | — |
 | Trilhas de etapa | criar, editar, publicar, arquivar | — | — | ✔ | — |
 | Trilhas de etapa | ver | as inscritas (atual e anteriores) | ✔ | ✔ | — |
 | Trilhas personalizadas | criar, editar, publicar, arquivar | — | as suas | as suas | — |
@@ -274,7 +274,7 @@ Substitui o `MODELAGEM_BANCO.md` para o escopo do MVP. Campos de auditoria (`cri
 |---|---|---|
 | **Usuário** | nome, e-mail (único, minúsculas), senha (hash), papel, ativo, deve_trocar_senha, último acesso, criado_em | Papéis: `admin`, `is`, `professor`, `empreendedor` |
 | **Empreendimento** | nome, tipo, descrição (texto formatado), e-mail e telefone de contato, representante → Usuário, desativado_em | Nulo em `desativado_em` = ativo. E-mail e telefone continuam como contato geral do empreendimento |
-| **Contato** | empreendimento, nome, função, e-mail, telefone, responsavel | No máximo um responsável por empreendimento. Na migração, cada empreendimento existente ganha um contato responsável **provisório** (placeholder), para a IS preencher |
+| **Contato** | empreendimento, nome, função, e-mail, telefone, responsavel | Sem vínculo com Usuário. Nome, e-mail e telefone obrigatórios, exceto no contato provisório. No máximo um responsável por empreendimento. Na migração, cada empreendimento existente ganha um contato responsável **provisório** (placeholder), para a IS preencher |
 | **Trilha** | título, descrição, etapa (vazio, `pre_incubacao`, `incubacao`, `desincubacao`), dono → Usuário, status, publicada_em, arquivada_em | Etapa vazia = trilha personalizada. No máximo uma trilha não arquivada por etapa |
 | **Atividade da trilha** | trilha, título, descrição (texto formatado), ordem, obrigatória, exige_validacao, visivel_desde_inscricao, prazo_fixo, dias_apos_inscricao, criada_em, arquivada_em | Um dos dois prazos, ou nenhum. Os dias contam a partir da disponibilidade (EXE-02). Sem `tipo` e sem `endereço`: na migração, o endereço existente passa para o fim da descrição |
 | **Inscrição** | empreendimento, trilha, status, inscrito_por (vazio = automática), inscrito_em, pausado_em, reativado_em, cancelado_em, cancelado_por → Usuário, concluido_em, motivo | Única por par entre as ativas e pausadas. `cancelado_por` distingue a desistência (INS-12) do cancelamento pela IS |
@@ -405,11 +405,13 @@ Cada jornada é um teste de ponta a ponta.
 | 5 | Nível inicial de um empreendimento novo | Vazio ("não avaliado") |
 | 6 | Prazo para a situação *Atenção* | Atividade devolvida há mais de 7 dias |
 | 7 | Desativar empreendimento tira o acesso do representante? | **Decidido** (F2, 7.4): sim, enquanto estiver desativado; a conta do representante continua ativa |
-| 8 | Quem cria e edita os contatos do empreendimento (EMP-07)? | A IS, e também a própria conta do empreendimento. **Decidido** (2026-11-24): os contatos existem porque o responsável pelo empreendimento pode mudar; os empreendimentos existentes ganham um contato provisório na migração. Quem edita continua a confirmar |
+| 8 | Quem cria e edita os contatos do empreendimento (EMP-07)? | **Decidido** (2026-11-24): só a IS. Nome, e-mail e telefone são obrigatórios. Os contatos existem porque o responsável pelo empreendimento pode mudar, e não precisam corresponder a uma pessoa nem a um usuário. Os empreendimentos existentes ganham um contato provisório na migração |
 | 9 | Arquivamento na trilha: o que o empreendedor e o dono esperam ver (rótulos "feito/realizado" e "remover")? | **A revisar.** Proposta: para o dono, o botão se chama "Remover atividade", mas por baixo continua sendo arquivamento (RN-10) |
-| 10 | O empreendedor pode desistir de uma inscrição pausada? | Sim, como na ativa |
+| 10 | O empreendedor pode desistir de uma inscrição pausada? | **Adiada** (2026-11-24): a resolver depois, junto com as demais questões da pausa. Proposta: sim, como na ativa |
 | 11 | Liberar uma atividade oculta para todos os inscritos de uma vez | Fora por ora; a liberação é por empreendimento. Pode voltar como atalho (S) |
-| 12 | Os prazos correm com a inscrição pausada? | **Decidido** (2026-11-24): não. Ao reativar, os prazos são adiados pelo tempo da pausa (INS-08). Prazo fixo também é adiado [ASSUMIDO] |
+| 12 | Os prazos correm com a inscrição pausada? | **Decidido** (2026-11-24): não. Ao reativar, os prazos são adiados pelo tempo da pausa (INS-08). Se o **prazo fixo** também é adiado fica **adiado** para depois; proposta: sim |
+| 13 | O dono pode liberar uma atividade (EXE-12) com a inscrição pausada? | **Adiada** (2026-11-24): a resolver depois, junto com as demais questões da pausa. Proposta: não |
+| 14 | Um contato pode ser removido? | [Confirmar] Proposta: sim, já que contato não é registro de negócio |
 
 ---
 
@@ -456,3 +458,4 @@ Cada jornada é um teste de ponta a ponta.
 | 0.4.5 | 2026-11-04 | Decisão da spec F1 (7.8): o admin informa os dados do empreendimento ao criar um empreendedor (RN-16 e tabela de permissões). |
 | 0.5.0 | 2026-11-19 | Segunda reunião com a IS: banners (F10), liberação de atividades (EXE-12), desistência (INS-12), conta do empreendimento com contatos (EMP-07), texto formatado (TXT-01); atividade sem tipo e endereço (ver seção 14). |
 | 0.5.1 | 2026-11-24 | Banners com uma flag de público por tipo de usuário (BAN-06). Contatos com um **responsável** que pode mudar, e contato provisório na migração (EMP-07). Prazos não correm com a inscrição pausada (INS-08, EXE-02; pendência 12). |
+| 0.5.2 | 2026-11-24 | Contatos: só a IS edita; nome, e-mail e telefone obrigatórios; contato sem vínculo com usuário e não necessariamente uma pessoa (EMP-07). Questões da pausa adiadas (pendências 10, 12 e 13). |
