@@ -1,8 +1,10 @@
-"""Regras dos empreendimentos: quem vê, e as próximas tarefas da F2.
+"""Regras dos empreendimentos: quem vê e quem edita.
 
 F2 · Empreendimentos (specs/F2-empreendimentos/spec.md, seção 3). As views só chamam
 estas funções. Falta de permissão vira `PermissionDenied` (403).
 """
+
+from django.core.exceptions import PermissionDenied
 
 from trilhas import regras as regras_trilhas
 from usuarios.models import Usuario
@@ -27,3 +29,9 @@ def empreendimentos_visiveis(usuario):
 def pode_ver(usuario, empreendimento):
     """EMP-05; vale também para os contatos (3.3a.8)."""
     return empreendimentos_visiveis(usuario).filter(pk=empreendimento.pk).exists()
+
+
+def exigir_edicao(usuario):
+    """Spec 3.3.1 e 3.3a.5: só a IS edita os dados e os contatos; os demais recebem 403 (A-03)."""
+    if not (usuario.is_authenticated and usuario.papel == Usuario.Papel.IS):
+        raise PermissionDenied

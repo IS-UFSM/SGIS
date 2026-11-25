@@ -1,6 +1,7 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from trilhas import regras as regras_trilhas
 from trilhas.models import Trilha
@@ -8,6 +9,7 @@ from usuarios.decorators import papel_requerido
 from usuarios.models import Usuario
 
 from . import regras
+from .forms import EmpreendimentoForm
 from .models import Empreendimento
 
 # Filtro por situação na lista: valor do parâmetro -> (rótulo, filtro).
@@ -82,4 +84,24 @@ def perfil_view(request, pk):
         'inscricoes': inscricoes,
         'trilhas_com_link': trilhas_com_link,
         'e_is': request.user.papel == Usuario.Papel.IS,
+    })
+
+
+@login_required
+def editar_view(request, pk):
+    """EMP-01 (spec 3.3): só a IS edita; a conta do empreendimento não muda (A-03, A-05)."""
+    regras.exigir_edicao(request.user)
+    empreendimento = get_object_or_404(Empreendimento, pk=pk)
+    nome_atual = empreendimento.nome  # a validação do form já altera a instância
+    form = EmpreendimentoForm(request.POST or None, instance=empreendimento)
+
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, f'Dados de "{empreendimento.nome}" atualizados.')
+        return redirect('empreendimentos:perfil', pk=empreendimento.pk)
+
+    return render(request, 'empreendimentos/editar.html', {
+        'form': form,
+        'empreendimento': empreendimento,
+        'nome_atual': nome_atual,
     })

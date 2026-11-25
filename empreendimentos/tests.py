@@ -257,3 +257,78 @@ class PerfilTests(TestCase):
         resposta = self.client.get(reverse('empreendimentos:lista'))
         self.assertContains(resposta, f'href="{self.url(self.a)}"')
         self.assertContains(resposta, f'href="{self.url(self.b)}"')
+
+
+class EdicaoTests(TestCase):
+    """F2 · T4: EMP-01 e spec 3.3, só a IS edita, sem trocar a conta do empreendimento."""
+
+    def setUp(self):
+        self.is_user = criar_conta('is@ufsm.br', papel=Usuario.Papel.IS)
+        self.conta = criar_conta('conta@atelie.com')
+        self.empreendimento = Empreendimento.objects.create(
+            nome='Ateliê', tipo=Empreendimento.Tipo.COLETIVO, representante=self.conta,
+        )
+        self.url = reverse('empreendimentos:editar', args=[self.empreendimento.pk])
+        self.dados = {
+            'nome': 'Ateliê da Praça', 'tipo': Empreendimento.Tipo.ASSOCIACAO,
+            'descricao': 'Peças feitas à mão.', 'email_contato': 'oi@atelie.com',
+            'telefone_contato': '55 3220-0000',
+        }
+
+    def retrato(self):
+        self.empreendimento.refresh_from_db()
+        return (
+            self.empreendimento.nome, self.empreendimento.tipo, self.empreendimento.descricao,
+            self.empreendimento.email_contato, self.empreendimento.telefone_contato,
+            self.empreendimento.representante_id,
+        )
+
+    def test_a03_is_edita(self):
+        self.client.force_login(self.is_user)
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        resposta = self.client.post(self.url, self.dados)
+        self.assertRedirects(
+            resposta, reverse('empreendimentos:perfil', args=[self.empreendimento.pk]),
+        )
+        self.assertEqual(self.retrato(), (*self.dados.values(), self.conta.pk))
+
+    def test_a03_dado_invalido_nao_salva(self):
+        self.client.force_login(self.is_user)
+        antes = self.retrato()
+        for campo, valor in (('nome', ''), ('tipo', 'alimentos'), ('email_contato', 'nao-e-email')):
+            with self.subTest(campo=campo):
+                resposta = self.client.post(self.url, {**self.dados, campo: valor})
+                self.assertEqual(resposta.status_code, 200)
+                self.assertTrue(resposta.context['form'].has_error(campo))
+                self.assertEqual(self.retrato(), antes)
+
+    def test_a03_professor_e_representante_nao_editam(self):
+        professor = criar_conta('x@ufsm.br', papel=Usuario.Papel.PROFESSOR)
+        Inscricao.objects.create(  # mesmo atendendo o empreendimento, o professor só lê
+            empreendimento=self.empreendimento,
+            trilha=Trilha.objects.create(titulo='Precificação', usuario_criador=professor),
+        )
+        admin = criar_conta('admin@ufsm.br', papel=Usuario.Papel.ADMIN)
+        antes = self.retrato()
+        for usuario in (professor, self.conta, admin):
+            with self.subTest(papel=usuario.papel):
+                self.client.force_login(usuario)
+                self.assertEqual(self.client.get(self.url).status_code, 403)
+                self.assertEqual(self.client.post(self.url, self.dados).status_code, 403)
+                perfil = self.client.get(
+                    reverse('empreendimentos:perfil', args=[self.empreendimento.pk]),
+                )
+                self.assertNotContains(perfil, self.url, status_code=perfil.status_code)
+        self.assertEqual(self.retrato(), antes)
+
+    def test_a05_representante_forjado_e_ignorado(self):
+        outra = criar_conta('outra@horta.com')
+        self.client.force_login(self.is_user)
+        self.client.post(self.url, {**self.dados, 'representante': outra.pk})
+        self.assertEqual(self.retrato()[-1], self.conta.pk)
+        self.assertEqual(self.retrato()[0], 'Ateliê da Praça')  # o resto foi salvo
+
+    def test_perfil_da_is_tem_botao_editar(self):
+        self.client.force_login(self.is_user)
+        perfil = self.client.get(reverse('empreendimentos:perfil', args=[self.empreendimento.pk]))
+        self.assertContains(perfil, f'href="{self.url}"')

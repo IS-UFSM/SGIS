@@ -28,3 +28,18 @@ class EmpreendimentoCadastroForm(forms.ModelForm):
                 'class': CLASSES_INPUT,
             }),
         }
+
+
+class EmpreendimentoForm(forms.ModelForm):
+    """EMP-01 (spec 3.3): a IS edita os dados. A conta do empreendimento fica de fora (3.2.4, A-05)."""
+
+    class Meta:
+        model = Empreendimento
+        fields = ['nome', 'tipo', 'descricao', 'email_contato', 'telefone_contato']
+        widgets = {
+            'nome': forms.TextInput(attrs={'class': CLASSES_INPUT}),
+            'tipo': forms.Select(attrs={'class': CLASSES_INPUT}),
+            'descricao': forms.Textarea(attrs={'rows': 4, 'class': CLASSES_INPUT}),
+            'email_contato': forms.EmailInput(attrs={'class': CLASSES_INPUT}),
+            'telefone_contato': forms.TextInput(attrs={'class': CLASSES_INPUT}),
+        }

@@ -15,12 +15,23 @@
       <h1 class="text-2xl font-bold text-slate-900">{{ empreendimento.nome }}</h1>
       <p class="text-slate-500 mt-1 text-sm">{{ empreendimento.get_tipo_display }}</p>
     </div>
-    {% if empreendimento.ativo %}
-      <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">Ativo</span>
-    {% else %}
-      <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-200 text-slate-700">Desativado</span>
-    {% endif %}
+    <div class="flex flex-wrap items-center gap-3">
+      {% if empreendimento.ativo %}
+        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">Ativo</span>
+      {% else %}
+        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-200 text-slate-700">Desativado</span>
+      {% endif %}
+      {% if e_is %}
+        <a href="{% url 'empreendimentos:editar' empreendimento.pk %}" class="py-1.5 px-3 text-xs font-semibold text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition duration-150">Editar</a>
+      {% endif %}
+    </div>
   </div>
+
+  {% for mensagem in messages %}
+    <div class="mt-6 p-4 rounded-xl text-sm {% if mensagem.tags == 'error' %}bg-red-50 border border-red-200 text-red-700{% else %}bg-emerald-50 border border-emerald-200 text-emerald-800{% endif %}" role="status">
+      {{ mensagem }}
+    </div>
+  {% endfor %}
 
   <section class="mt-6 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
     <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Dados</h2>
