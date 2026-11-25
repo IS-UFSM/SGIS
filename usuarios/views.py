@@ -7,6 +7,7 @@ from django.views.decorators.http import require_POST
 
 from empreendimentos.forms import EmpreendimentoCadastroForm
 from sgis.excecoes import RegraViolada
+from trilhas import regras as regras_trilhas
 
 from . import regras
 from .decorators import papel_requerido
@@ -87,6 +88,9 @@ def criar_usuario_view(request):
                 f'Usuário "{conta.nome}" e empreendimento '
                 f'"{form_empreendimento.cleaned_data["nome"]}" criados com sucesso.',
             )
+            aviso = regras_trilhas.aviso_pre_incubacao()  # F4, A-06
+            if aviso:
+                messages.warning(request, aviso)
             return redirect('criar_usuario')
     elif request.method == 'POST' and request.POST.get('papel') == Usuario.Papel.EMPREENDEDOR:
         form_empreendimento.is_valid()  # mostra os erros dos dois formulários de uma vez
