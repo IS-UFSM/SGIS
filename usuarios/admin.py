@@ -15,6 +15,12 @@ from .models import Usuario
 admin.site.unregister(Group)
 
 
+# Os campos do empreendimento na criação pelo admin, na ordem do formulário da IS (F2, EMP-01).
+CAMPOS_EMPREENDIMENTO_ADMIN = tuple(
+    f'empreendimento-{nome}' for nome in EmpreendimentoCadastroForm.base_fields
+)
+
+
 class UsuarioAdminCreationForm(AdminUserCreationForm):
     """ACE-04/ACE-05: campos do empreendimento na criação pelo admin."""
 
@@ -40,7 +46,7 @@ class UsuarioAdminCreationForm(AdminUserCreationForm):
 
         self.order_fields([
             'email', 'nome', 'papel',
-            'empreendimento-nome', 'empreendimento-tipo', 'empreendimento-descricao',
+            *CAMPOS_EMPREENDIMENTO_ADMIN,
             'password1', 'password2',
         ])
 
@@ -86,7 +92,7 @@ class UsuarioAdmin(BaseUserAdmin):
             'classes': ('wide',),
             'fields': (
                 'email', 'nome', 'papel',
-                'empreendimento-nome', 'empreendimento-tipo', 'empreendimento-descricao',
+                *CAMPOS_EMPREENDIMENTO_ADMIN,
                 'password1', 'password2',
             ),
         }),

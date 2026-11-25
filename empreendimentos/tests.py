@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -332,3 +332,74 @@ class EdicaoTests(TestCase):
         self.client.force_login(self.is_user)
         perfil = self.client.get(reverse('empreendimentos:perfil', args=[self.empreendimento.pk]))
         self.assertContains(perfil, f'href="{self.url}"')
+
+
+@override_settings(STORAGES={  # o /admin/ usa arquivos estáticos, como nos testes da F1
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class CriacaoTests(TestCase):
+    """F2 · T5: EMP-01, o formulário da F1 pede todos os dados do empreendimento."""
+
+    dados_empreendimento = {
+        'empreendimento-nome': 'Ateliê da Praça',
+        'empreendimento-tipo': Empreendimento.Tipo.ASSOCIACAO,
+        'empreendimento-descricao': 'Peças feitas à mão.',
+        'empreendimento-email_contato': 'contato@atelie.com',
+        'empreendimento-telefone_contato': '(55) 3220-0000',
+    }
+    esperado = ('Ateliê da Praça', 'associacao', 'Peças feitas à mão.',
+                'contato@atelie.com', '(55) 3220-0000')
+
+    def setUp(self):
+        self.is_user = criar_conta('is@ufsm.br', papel=Usuario.Papel.IS)
+        self.admin = Usuario.objects.create_superuser('admin@ufsm.br', 'Admin', 'senha-forte-123')
+
+    def criar_pela_is(self, email='joao@atelie.com', **extra):
+        self.client.force_login(self.is_user)
+        return self.client.post(reverse('criar_usuario'), {
+            'nome': 'João do Ateliê', 'email': email, 'papel': Usuario.Papel.EMPREENDEDOR,
+            'senha': 'senha-inicial-123', **self.dados_empreendimento, **extra,
+        })
+
+    def criar_pelo_admin(self, email='joao@atelie.com', **extra):
+        self.client.force_login(self.admin)
+        return self.client.post(reverse('admin:usuarios_usuario_add'), {
+            'nome': 'João do Ateliê', 'email': email, 'papel': Usuario.Papel.EMPREENDEDOR,
+            'password1': 'senha-inicial-123', 'password2': 'senha-inicial-123',
+            **self.dados_empreendimento, **extra,
+        })
+
+    def salvo(self, email='joao@atelie.com'):
+        e = Empreendimento.objects.get(representante__email=email)
+        return (e.nome, e.tipo, e.descricao, e.email_contato, e.telefone_contato)
+
+    def test_a01_criar_empreendedor_salva_todos_os_campos(self):
+        for criar, email in ((self.criar_pela_is, 'is@atelie.com'),
+                             (self.criar_pelo_admin, 'admin@atelie.com')):
+            with self.subTest(tela=criar.__name__):
+                resposta = criar(email=email)
+                self.assertEqual(resposta.status_code, 302)
+                self.assertEqual(self.salvo(email), self.esperado)
+
+    def test_a01_formulario_da_is_mostra_os_campos_novos(self):
+        self.client.force_login(self.is_user)
+        resposta = self.client.get(reverse('criar_usuario'))
+        for campo in ('email_contato', 'telefone_contato'):
+            self.assertContains(resposta, f'name="empreendimento-{campo}"')
+
+    def test_a01_email_e_telefone_sao_opcionais(self):
+        self.criar_pela_is(**{
+            'empreendimento-email_contato': '', 'empreendimento-telefone_contato': '',
+        })
+        self.assertEqual(self.salvo()[3:], ('', ''))
+
+    def test_a02_tipo_ou_email_invalido_nao_cria_nada(self):
+        invalidos = (('tipo', 'alimentos'), ('tipo', ''), ('email_contato', 'nao-e-email'))
+        for criar in (self.criar_pela_is, self.criar_pelo_admin):
+            for campo, valor in invalidos:
+                with self.subTest(tela=criar.__name__, campo=campo, valor=valor):
+                    resposta = criar(**{f'empreendimento-{campo}': valor})
+                    self.assertEqual(resposta.status_code, 200)
+                    self.assertFalse(Usuario.objects.filter(email='joao@atelie.com').exists())
+                    self.assertFalse(Empreendimento.objects.filter(nome='Ateliê da Praça').exists())
