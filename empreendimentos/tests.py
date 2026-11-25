@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection
+from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.test.utils import CaptureQueriesContext
@@ -11,7 +11,7 @@ from trilhas.models import Inscricao, Trilha
 from usuarios import regras as regras_usuarios
 from usuarios.models import Usuario
 
-from .models import Empreendimento
+from .models import Contato, Empreendimento
 
 
 def criar_conta(email, papel=Usuario.Papel.EMPREENDEDOR):
@@ -481,3 +481,293 @@ class MigracaoDaDescricaoTests(TransactionTestCase):
         for chave, e in textos.items():
             with self.subTest(chave=chave):
                 self.assertEqual(Antigo.objects.get(pk=e.pk).descricao, originais[chave])
+
+
+class ContatosTests(TestCase):
+    """F2 · T7: EMP-07 (spec 3.3a), os contatos do empreendimento."""
+
+    def setUp(self):
+        self.is_user = criar_conta('is@ufsm.br', papel=Usuario.Papel.IS)
+        self.professor_x = criar_conta('x@ufsm.br', papel=Usuario.Papel.PROFESSOR)
+        self.professor_z = criar_conta('z@ufsm.br', papel=Usuario.Papel.PROFESSOR)
+        self.conta_a = criar_conta('conta@atelie.com')
+        self.conta_b = criar_conta('conta@horta.com')
+        self.a = Empreendimento.objects.create(nome='Ateliê', tipo=Empreendimento.Tipo.COLETIVO,
+                                               representante=self.conta_a)
+        self.b = Empreendimento.objects.create(nome='Horta', tipo=Empreendimento.Tipo.MEI,
+                                               representante=self.conta_b)
+        trilha = Trilha.objects.create(titulo='Precificação', usuario_criador=self.professor_x,
+                                       status=Trilha.Status.PUBLICADA)
+        Inscricao.objects.create(empreendimento=self.a, trilha=trilha)  # X atende A
+
+    def contato(self, empreendimento=None, nome='Maria', responsavel=False, **campos):
+        return Contato.objects.create(
+            empreendimento=empreendimento or self.a, nome=nome,
+            email=campos.pop('email', f'{nome.lower()}@atelie.com'),
+            telefone=campos.pop('telefone', '(55) 99999-0000'),
+            responsavel=responsavel, **campos,
+        )
+
+    def url(self, nome, empreendimento=None, contato=None):
+        args = [(empreendimento or self.a).pk] + ([contato.pk] if contato else [])
+        return reverse(f'empreendimentos:{nome}', args=args)
+
+    def dados(self, **extra):
+        return {'nome': 'Maria Souza', 'funcao': 'presidente', 'email': 'maria@atelie.com',
+                'telefone': '(55) 99999-0000', **extra}
+
+    def test_a13_is_cadastra_contatos_sem_login(self):
+        self.client.force_login(self.is_user)
+        self.client.post(self.url('contato_novo'), self.dados())
+        resposta = self.client.post(self.url('contato_novo'), self.dados(
+            nome='João Lima', funcao='tesoureiro', email='joao@atelie.com',
+            empreendimento=self.b.pk, provisorio='on',  # forjados: o servidor define
+        ))
+        self.assertRedirects(resposta, self.url('perfil'))
+
+        self.assertEqual(self.a.contatos.count(), 2)
+        self.assertFalse(self.b.contatos.exists())
+        self.assertFalse(self.a.contatos.filter(provisorio=True).exists())
+        perfil = self.client.get(self.url('perfil'))
+        for texto in ('Maria Souza', 'presidente', 'João Lima', 'joao@atelie.com'):
+            self.assertContains(perfil, texto)
+        # Contato não é conta: nenhum usuário tem esses e-mails, e ninguém entra com eles.
+        self.assertFalse(
+            Usuario.objects.filter(email__in=['maria@atelie.com', 'joao@atelie.com']).exists()
+        )
+
+    def test_a14_trocar_responsavel_mantem_um_so(self):
+        maria = self.contato(nome='Maria', responsavel=True)
+        joao = self.contato(nome='João')
+        self.client.force_login(self.is_user)
+        self.client.post(self.url('contato_responsavel', contato=joao))
+
+        maria.refresh_from_db()
+        joao.refresh_from_db()
+        self.assertFalse(maria.responsavel)
+        self.assertTrue(joao.responsavel)
+        self.assertEqual(self.a.contatos.filter(responsavel=True).count(), 1)
+        self.assertEqual(self.a.contatos.count(), 2)  # Maria continua na lista
+        self.a.refresh_from_db()
+        self.assertEqual(self.a.representante, self.conta_a)
+
+        # Pelo formulário, marcar outro como responsável também troca.
+        self.client.post(self.url('contato_editar', contato=maria),
+                         self.dados(nome='Maria', email='maria@atelie.com', responsavel='on'))
+        self.assertEqual(list(self.a.contatos.filter(responsavel=True)), [maria])
+
+    def test_banco_recusa_dois_responsaveis(self):
+        self.contato(nome='Maria', responsavel=True)
+        self.contato(empreendimento=self.b, nome='Outro', responsavel=True)  # outro empreendimento
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            self.contato(nome='João', responsavel=True)
+
+    def test_a15_quem_ve_o_perfil_ve_os_contatos(self):
+        self.contato(nome='Maria', funcao='presidente')
+        for usuario in (self.is_user, self.professor_x, self.conta_a):
+            with self.subTest(usuario=usuario.email):
+                self.client.force_login(usuario)
+                self.assertContains(self.client.get(self.url('perfil')), 'maria@atelie.com')
+        for usuario in (self.professor_z, self.conta_b):
+            with self.subTest(usuario=usuario.email):
+                self.client.force_login(usuario)
+                self.assertEqual(self.client.get(self.url('perfil')).status_code, 403)
+
+    def test_a16_professor_e_conta_nao_mexem_em_contatos(self):
+        maria = self.contato(nome='Maria', responsavel=True)
+        joao = self.contato(nome='João')
+        admin = criar_conta('admin@ufsm.br', papel=Usuario.Papel.ADMIN)
+        for usuario in (self.professor_x, self.conta_a, admin):
+            self.client.force_login(usuario)
+            with self.subTest(usuario=usuario.email):
+                self.assertEqual(self.client.get(self.url('contato_novo')).status_code, 403)
+                self.assertEqual(
+                    self.client.post(self.url('contato_novo'), self.dados()).status_code, 403)
+                self.assertEqual(self.client.post(self.url('contato_editar', contato=maria),
+                                                  self.dados()).status_code, 403)
+                self.assertEqual(self.client.post(
+                    self.url('contato_responsavel', contato=joao)).status_code, 403)
+                self.assertEqual(self.client.post(
+                    self.url('contato_remover', contato=joao)).status_code, 403)
+        self.client.force_login(self.professor_x)
+        self.assertNotContains(self.client.get(self.url('perfil')), 'Tornar responsável')
+        self.assertEqual(self.a.contatos.count(), 2)
+        maria.refresh_from_db()
+        self.assertEqual((maria.nome, maria.responsavel), ('Maria', True))
+
+    def test_contato_de_a_nao_abre_pelo_endereco_de_b(self):
+        maria = self.contato(nome='Maria')
+        self.client.force_login(self.is_user)
+        for nome in ('contato_editar', 'contato_responsavel', 'contato_remover'):
+            with self.subTest(rota=nome):
+                url = self.url(nome, empreendimento=self.b, contato=maria)
+                self.assertEqual(self.client.post(url, self.dados()).status_code, 404)
+        maria.refresh_from_db()
+        self.assertEqual((maria.empreendimento, maria.nome, maria.responsavel),
+                         (self.a, 'Maria', False))
+
+    def test_a16b_contato_sem_campo_obrigatorio_e_recusado(self):
+        self.client.force_login(self.is_user)
+        casos = {'nome': {'nome': ''}, 'email': {'email': ''}, 'telefone': {'telefone': ''},
+                 'email invalido': {'email': 'nao-e-email'}}
+        for caso, extra in casos.items():
+            with self.subTest(caso=caso):
+                resposta = self.client.post(self.url('contato_novo'), self.dados(**extra))
+                self.assertEqual(resposta.status_code, 200)
+                self.assertTrue(resposta.context['form'].has_error(next(iter(extra))))
+        self.assertFalse(Contato.objects.exists())
+
+    def test_a16b_provisorio_so_e_salvo_completo(self):
+        provisorio = self.contato(nome='A definir', email='', telefone='', responsavel=True,
+                                  provisorio=True)
+        self.client.force_login(self.is_user)
+        self.assertContains(self.client.get(self.url('perfil')), 'Provisório')
+        resposta = self.client.post(self.url('contato_editar', contato=provisorio),
+                                    {'nome': 'Maria', 'responsavel': 'on'})
+        self.assertEqual(resposta.status_code, 200)
+        provisorio.refresh_from_db()
+        self.assertEqual((provisorio.nome, provisorio.provisorio), ('A definir', True))
+
+        self.client.post(self.url('contato_editar', contato=provisorio),
+                         self.dados(responsavel='on'))
+        provisorio.refresh_from_db()
+        self.assertEqual((provisorio.nome, provisorio.provisorio, provisorio.responsavel),
+                         ('Maria Souza', False, True))
+        self.assertNotContains(self.client.get(self.url('perfil')), 'Provisório')
+
+    def test_a16c_contato_nao_precisa_ser_pessoa(self):
+        self.client.force_login(self.is_user)
+        self.client.post(self.url('contato_novo'), self.dados(
+            nome='Secretaria', funcao='', email='secretaria@atelie.com'))
+        contato = self.a.contatos.get()
+        self.assertEqual((contato.nome, contato.funcao), ('Secretaria', ''))
+        self.assertFalse(Usuario.objects.filter(email='secretaria@atelie.com').exists())
+
+    def test_a16d_remover_contato_com_confirmacao(self):
+        maria = self.contato(nome='Maria', responsavel=True)
+        joao = self.contato(nome='João')
+        self.client.force_login(self.is_user)
+
+        # Sem confirmar (GET), ou cancelando pelo link de volta, nada muda.
+        confirmacao = self.client.get(self.url('contato_remover', contato=maria))
+        self.assertContains(confirmacao, 'Remover contato')
+        self.assertContains(confirmacao, f'href="{self.url("perfil")}"')
+        self.assertEqual(self.a.contatos.count(), 2)
+
+        resposta = self.client.post(self.url('contato_remover', contato=maria))
+        self.assertRedirects(resposta, self.url('perfil'))
+        self.assertFalse(Contato.objects.filter(pk=maria.pk).exists())
+        self.assertEqual(list(self.a.contatos.all()), [joao])
+        self.assertFalse(self.a.contatos.filter(responsavel=True).exists())  # sem responsável
+        self.assertContains(self.client.get(self.url('perfil')), 'Sem responsável')
+
+    def test_responsavel_exige_post(self):
+        joao = self.contato(nome='João')
+        self.client.force_login(self.is_user)
+        resposta = self.client.get(self.url('contato_responsavel', contato=joao))
+        self.assertEqual(resposta.status_code, 405)
+        joao.refresh_from_db()
+        self.assertFalse(joao.responsavel)
+
+
+class ContatoNaCriacaoTests(TestCase):
+    """F2 · T7: 3.3a.6, o responsável opcional na criação do empreendedor pela IS."""
+
+    def setUp(self):
+        self.client.force_login(criar_conta('is@ufsm.br', papel=Usuario.Papel.IS))
+
+    def criar(self, **contato):
+        return self.client.post(reverse('criar_usuario'), {
+            'nome': 'Ateliê', 'email': 'conta@atelie.com', 'papel': Usuario.Papel.EMPREENDEDOR,
+            'senha': 'senha-inicial-123',
+            'empreendimento-nome': 'Ateliê', 'empreendimento-tipo': Empreendimento.Tipo.COLETIVO,
+            **{f'contato-{campo}': valor for campo, valor in contato.items()},
+        })
+
+    def test_a01_contato_opcional_na_criacao(self):
+        # Em branco: nenhum contato. A marca de responsável, que já vem ligada, não conta.
+        self.assertRedirects(self.criar(responsavel='on'), reverse('criar_usuario'))
+        self.assertFalse(Empreendimento.objects.get(nome='Ateliê').contatos.exists())
+
+        self.client.post(reverse('criar_usuario'), {
+            'nome': 'Horta', 'email': 'conta@horta.com', 'papel': Usuario.Papel.EMPREENDEDOR,
+            'senha': 'senha-inicial-123',
+            'empreendimento-nome': 'Horta', 'empreendimento-tipo': Empreendimento.Tipo.MEI,
+            'contato-nome': 'Maria', 'contato-funcao': 'presidente',
+            'contato-email': 'maria@horta.com', 'contato-telefone': '(55) 99999-0000',
+            'contato-responsavel': 'on',
+        })
+        contato = Empreendimento.objects.get(nome='Horta').contatos.get()
+        self.assertEqual(
+            (contato.nome, contato.funcao, contato.email, contato.responsavel, contato.provisorio),
+            ('Maria', 'presidente', 'maria@horta.com', True, False),
+        )
+        self.assertFalse(Usuario.objects.filter(email='maria@horta.com').exists())
+
+    def test_a01_formulario_ja_marca_o_responsavel(self):
+        resposta = self.client.get(reverse('criar_usuario'))
+        self.assertContains(resposta, 'Responsável pelo empreendimento')
+        self.assertTrue(resposta.context['form_contato']['responsavel'].value())
+
+    def test_a02_contato_incompleto_na_criacao_nao_cria_nada(self):
+        casos = {
+            'sem e-mail e telefone': {'nome': 'Maria', 'responsavel': 'on'},
+            'e-mail invalido': {'nome': 'Maria', 'email': 'x', 'telefone': '1'},
+            'so a funcao': {'funcao': 'presidente'},
+        }
+        for caso, contato in casos.items():
+            with self.subTest(caso=caso):
+                resposta = self.criar(**contato)
+                self.assertEqual(resposta.status_code, 200)
+                self.assertTrue(resposta.context['form_contato'].errors)
+        self.assertFalse(Usuario.objects.filter(email='conta@atelie.com').exists())
+        self.assertFalse(Empreendimento.objects.filter(nome='Ateliê').exists())
+        self.assertFalse(Contato.objects.exists())
+
+    def test_professor_ignora_o_contato(self):
+        self.client.post(reverse('criar_usuario'), {
+            'nome': 'Prof', 'email': 'prof@ufsm.br', 'papel': Usuario.Papel.PROFESSOR,
+            'senha': 'senha-inicial-123', 'contato-nome': 'Maria',
+        })
+        self.assertTrue(Usuario.objects.filter(email='prof@ufsm.br').exists())
+        self.assertFalse(Contato.objects.exists())
+
+
+class MigracaoDosContatosTests(TransactionTestCase):
+    """F2 · T7: a 0009 cria um contato provisório por empreendimento; a reversa o remove."""
+
+    serialized_rollback = True  # ver MigracaoDoTipoTests
+
+    antes = [('empreendimentos', '0007_descricao_html')]
+    depois = [('empreendimentos', '0009_contato_provisorio')]
+    so_o_model = [('empreendimentos', '0008_contato')]
+
+    migrar = MigracaoDoTipoTests.migrar
+    tearDown = MigracaoDoTipoTests.tearDown
+
+    def test_a14b_migracao_cria_contato_provisorio_e_reversa_remove(self):
+        apps = self.migrar(self.antes)
+        Antigo = apps.get_model('empreendimentos', 'Empreendimento')
+        ids = [
+            Antigo.objects.create(representante_id=criar_conta(email).pk, nome='E', tipo='outro').pk
+            for email in ('a@a.com', 'b@b.com')
+        ]
+
+        apps = self.migrar(self.depois)
+        ContatoMigrado = apps.get_model('empreendimentos', 'Contato')
+        for pk in ids:
+            with self.subTest(empreendimento=pk):
+                contato = ContatoMigrado.objects.get(empreendimento_id=pk)
+                self.assertEqual(
+                    (contato.nome, contato.email, contato.telefone, contato.responsavel,
+                     contato.provisorio),
+                    ('A definir', '', '', True, True),
+                )
+        # Um contato já preenchido pela IS não sai na reversa.
+        ContatoMigrado.objects.filter(empreendimento_id=ids[1]).update(provisorio=False)
+
+        apps = self.migrar(self.so_o_model)
+        ContatoMigrado = apps.get_model('empreendimentos', 'Contato')
+        self.assertEqual(
+            list(ContatoMigrado.objects.values_list('empreendimento_id', flat=True)), [ids[1]],
+        )

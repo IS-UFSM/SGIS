@@ -66,6 +66,15 @@
             {% endif %}
           </div>
         {% endfor %}
+
+        {# F2, 3.3a.6: o responsável é opcional; em branco, nenhum contato é criado. #}
+        <div class="space-y-5 pt-5 border-t border-slate-100">
+          <div>
+            <p class="text-sm font-bold text-slate-900">Responsável pelo empreendimento <span class="font-normal text-slate-500">(opcional)</span></p>
+            <p class="text-xs text-slate-500 mt-1">Um contato, sem login. Preencha nome, e-mail e telefone, ou deixe tudo em branco.</p>
+          </div>
+          {% include 'empreendimentos/_campos_contato.html' with form=form_contato %}
+        </div>
       </fieldset>
 
       <div class="flex items-center justify-end gap-3 pt-2">

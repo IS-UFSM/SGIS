@@ -6,7 +6,7 @@ As views e o /admin/ só chamam estas funções, para que as regras fiquem num l
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
-from empreendimentos.models import Empreendimento
+from empreendimentos.models import Contato, Empreendimento
 from sgis.excecoes import RegraViolada
 
 from .models import Usuario
@@ -44,10 +44,17 @@ def criar_conta(dados_conta, senha):
 
 
 @transaction.atomic
-def criar_empreendedor(dados_conta, senha, dados_empreendimento):
-    """3.3.4 e RN-01: o empreendedor e o empreendimento são criados juntos, ou nenhum."""
+def criar_empreendedor(dados_conta, senha, dados_empreendimento, dados_contato=None):
+    """3.3.4 e RN-01: o empreendedor e o empreendimento são criados juntos, ou nenhum.
+
+    F2, 3.3a.6: o contato responsável, se informado, entra na mesma transação.
+    """
     conta = criar_conta({**dados_conta, 'papel': Usuario.Papel.EMPREENDEDOR}, senha)
-    vincular_empreendimento(conta, dados_empreendimento)
+    empreendimento = vincular_empreendimento(conta, dados_empreendimento)
+    if dados_contato:
+        contato = Contato(empreendimento=empreendimento, **dados_contato)
+        contato.full_clean()
+        contato.save()
     return conta
 
 

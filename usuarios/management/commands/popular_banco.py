@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from empreendimentos.models import Empreendimento
+from empreendimentos.models import Contato, Empreendimento
 from trilhas.models import AtividadeTrilha, Trilha
 from usuarios.models import Usuario
 
@@ -120,6 +120,30 @@ class Command(BaseCommand):
             )
             status = 'criado' if created else 'ja existente'
             self.stdout.write(f'  [OK] Empreendimento: {emp.nome} ({status})')
+
+        # 2a. Contatos (F2, EMP-07): dois por empreendimento, um deles responsável.
+        contatos_data = {
+            'Atelie Costura Solidaria': [
+                ('Ana Costa', 'presidente', 'ana@costurasolidaria.example', '(55) 99100-0001', True),
+                ('Secretaria', '', 'secretaria@costurasolidaria.example', '(55) 3220-0011', False),
+            ],
+            'Horta Urbana Verde Vivo': [
+                ('Joao Lima', 'coordenador', 'joao@verdevivo.example', '(55) 99100-0002', True),
+                ('Marta Rosa', 'tesoureira', 'marta@verdevivo.example', '(55) 99100-0003', False),
+            ],
+        }
+        for nome_emp, contatos in contatos_data.items():
+            emp = Empreendimento.objects.get(nome=nome_emp)
+            for nome, funcao, email, telefone, responsavel in contatos:
+                # Num banco antigo, o contato provisório da migração já é o responsável.
+                responsavel = responsavel and not emp.contatos.filter(responsavel=True).exists()
+                _, created = Contato.objects.get_or_create(
+                    empreendimento=emp, nome=nome,
+                    defaults={'funcao': funcao, 'email': email, 'telefone': telefone,
+                              'responsavel': responsavel},
+                )
+                if created:
+                    self.stdout.write(f'  [OK] Contato: {nome} ({nome_emp})')
 
         # 3. Trilhas de mock: as de etapa já existem (migração trilhas/0007);
         #    aqui ganham atividades e são publicadas, junto com uma trilha de professor.

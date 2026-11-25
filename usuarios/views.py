@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from empreendimentos.forms import EmpreendimentoCadastroForm
+from empreendimentos.forms import ContatoCriacaoForm, EmpreendimentoCadastroForm
 from sgis.excecoes import RegraViolada
 from trilhas import regras as regras_trilhas
 
@@ -70,6 +70,7 @@ def criar_usuario_view(request):
     """IS cria um professor ou um empreendedor; o empreendedor vem com o empreendimento (ACE-05)."""
     form = UsuarioCadastroForm(request.POST or None)
     form_empreendimento = EmpreendimentoCadastroForm(request.POST or None, prefix='empreendimento')
+    form_contato = ContatoCriacaoForm(request.POST or None)  # F2, 3.3a.6: opcional
 
     if request.method == 'POST' and form.is_valid():
         dados_conta = {campo: form.cleaned_data[campo] for campo in ('nome', 'email', 'papel')}
@@ -81,8 +82,13 @@ def criar_usuario_view(request):
             messages.success(request, f'Usuário "{conta.nome}" criado com sucesso.')
             return redirect('criar_usuario')
 
-        if form_empreendimento.is_valid():
-            conta = regras.criar_empreendedor(dados_conta, senha, form_empreendimento.cleaned_data)
+        empreendimento_valido = form_empreendimento.is_valid()
+        contato_valido = form_contato.is_valid()  # os erros dos dois aparecem de uma vez
+        if empreendimento_valido and contato_valido:
+            dados_contato = form_contato.cleaned_data if form_contato.has_changed() else None
+            conta = regras.criar_empreendedor(
+                dados_conta, senha, form_empreendimento.cleaned_data, dados_contato,
+            )
             messages.success(
                 request,
                 f'Usuário "{conta.nome}" e empreendimento '
@@ -93,10 +99,11 @@ def criar_usuario_view(request):
                 messages.warning(request, aviso)
             return redirect('criar_usuario')
     elif request.method == 'POST' and request.POST.get('papel') == Usuario.Papel.EMPREENDEDOR:
-        form_empreendimento.is_valid()  # mostra os erros dos dois formulários de uma vez
+        form_empreendimento.is_valid()  # mostra os erros de todos os formulários de uma vez
+        form_contato.is_valid()
 
     return render(request, 'usuarios/criar_usuario.html', {
-        'form': form, 'form_empreendimento': form_empreendimento,
+        'form': form, 'form_empreendimento': form_empreendimento, 'form_contato': form_contato,
     })
 
 
