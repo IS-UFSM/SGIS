@@ -3,10 +3,12 @@ import re
 from django.conf import settings
 from django.contrib.auth.decorators import login_not_required
 from django.http import HttpResponse
+from django.template import Context, Template
 from django.test import TestCase, override_settings
 from django.urls import URLPattern, URLResolver, get_resolver, path, reverse
 from django.utils.http import urlencode
 
+from sgis.texto import TextoFormatadoField, limpar_html
 from usuarios.models import Usuario
 from usuarios.views import login_view
 
@@ -232,3 +234,51 @@ class RotaNovaProtegidaTests(TestCase):
         self.assertRedirects(resposta, '/login/?next=/rota-nova/', fetch_redirect_response=False)
 
         self.assertEqual(self.client.get('/rota-publica/').status_code, 200)
+
+
+class TextoFormatadoTests(TestCase):
+    """TXT-01 e RN-19: só as marcações do mini editor sobrevivem, ao gravar e ao exibir."""
+
+    def test_rn19_limpar_html_remove_script_e_onclick(self):
+        sujo = (
+            '<div><strong>Forte</strong> <em>leve</em> <b onclick="roubar()">b</b>'
+            '<script>alert(1)</script><style>p{}</style><img src=x onerror="roubar()">'
+            '<iframe src="https://x.com"></iframe><!-- comentário -->'
+            '<ul><li>um</li></ul><ol><li>dois</li></ol>'
+            '<a href="javascript:alert(1)">ruim</a></div>'
+        )
+        limpo = limpar_html(sujo)
+        for proibido in ('script', 'alert', 'style', 'onclick', 'onerror', '<img',
+                         '<iframe', 'comentário', 'javascript'):
+            self.assertNotIn(proibido, limpo)
+        for permitido in ('<strong>Forte</strong>', '<em>leve</em>', '<b>b</b>',
+                          '<ul><li>um</li></ul>', '<ol><li>dois</li></ol>'):
+            self.assertIn(permitido, limpo)
+
+    def test_rn19_link_abre_em_nova_aba(self):
+        limpo = limpar_html('<a href="https://ufsm.br" title="x" class="y">UFSM</a>')
+        self.assertIn('href="https://ufsm.br"', limpo)
+        self.assertIn('target="_blank"', limpo)
+        self.assertIn('rel="noopener noreferrer"', limpo)
+        self.assertNotIn('title', limpo)
+        self.assertNotIn('class', limpo)
+        self.assertIn('href="mailto:is@ufsm.br"', limpar_html('<a href="mailto:is@ufsm.br">e</a>'))
+
+    def test_rn19_filtro_limpa_dado_antigo(self):
+        """Um valor gravado por fora do formulário é limpo de novo ao exibir."""
+        html = Template('{% load texto %}{{ valor|texto_formatado }}').render(
+            Context({'valor': '<p>Oi <script>alert(1)</script><b onclick="x()">b</b></p>'}),
+        )
+        self.assertEqual(html, '<p>Oi <b>b</b></p>')
+
+    def test_txt01_texto_simples_vira_paragrafos(self):
+        """Sem o editor (no /admin/ ou com o CDN fora do ar), as quebras de linha ficam."""
+        campo = TextoFormatadoField(required=False)
+        self.assertEqual(campo.clean('um\ndois\n\ntrês < 4'), '<p>um<br>dois</p>\n\n<p>três &lt; 4</p>')
+        self.assertEqual(campo.clean(''), '')
+
+    def test_txt01_resumo_tira_marcacoes(self):
+        html = Template('{% load texto %}{{ valor|texto_resumo:10 }}').render(
+            Context({'valor': '<p>Peças <b>à mão</b> &amp; mais</p>'}),
+        )
+        self.assertEqual(html, 'Peças à m…')

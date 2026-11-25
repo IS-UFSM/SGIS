@@ -98,7 +98,7 @@ class Command(BaseCommand):
             {
                 'nome': 'Atelie Costura Solidaria',
                 'tipo': Empreendimento.Tipo.COLETIVO,
-                'descricao': 'Producao artesanal sustentavel e geracao de renda para costureiras locais.',
+                'descricao': '<div>Producao artesanal <strong>sustentavel</strong> e geracao de renda para costureiras locais.</div>',
                 'email_contato': 'contato@costurasolidaria.example',
                 'telefone_contato': '(55) 3220-0001',
                 'representante': usuarios['ana.costura@sgis.com'],
@@ -106,7 +106,7 @@ class Command(BaseCommand):
             {
                 'nome': 'Horta Urbana Verde Vivo',
                 'tipo': Empreendimento.Tipo.ASSOCIACAO,
-                'descricao': 'Cultivo comunitario de hortalicas organicas com venda direta ao consumidor.',
+                'descricao': '<div>Cultivo comunitario de hortalicas organicas com venda direta ao consumidor.</div>',
                 'email_contato': 'contato@verdevivo.example',
                 'telefone_contato': '(55) 3220-0002',
                 'representante': usuarios['joao.horta@sgis.com'],

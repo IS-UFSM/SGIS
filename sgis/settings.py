@@ -51,7 +51,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Apps do SGIS
+    # Apps do SGIS ('sgis' só para os templatetags do texto formatado, TXT-01)
+    'sgis',
     'usuarios',
     'empreendimentos',
     'trilhas',

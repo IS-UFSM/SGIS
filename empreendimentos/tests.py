@@ -290,7 +290,8 @@ class EdicaoTests(TestCase):
         self.assertRedirects(
             resposta, reverse('empreendimentos:perfil', args=[self.empreendimento.pk]),
         )
-        self.assertEqual(self.retrato(), (*self.dados.values(), self.conta.pk))
+        esperado = {**self.dados, 'descricao': '<p>Peças feitas à mão.</p>'}  # TXT-01
+        self.assertEqual(self.retrato(), (*esperado.values(), self.conta.pk))
 
     def test_a03_dado_invalido_nao_salva(self):
         self.client.force_login(self.is_user)
@@ -348,7 +349,8 @@ class CriacaoTests(TestCase):
         'empreendimento-email_contato': 'contato@atelie.com',
         'empreendimento-telefone_contato': '(55) 3220-0000',
     }
-    esperado = ('Ateliê da Praça', 'associacao', 'Peças feitas à mão.',
+    # A descrição chega como texto simples (sem o editor) e vira parágrafo (TXT-01).
+    esperado = ('Ateliê da Praça', 'associacao', '<p>Peças feitas à mão.</p>',
                 'contato@atelie.com', '(55) 3220-0000')
 
     def setUp(self):
@@ -403,3 +405,79 @@ class CriacaoTests(TestCase):
                     self.assertEqual(resposta.status_code, 200)
                     self.assertFalse(Usuario.objects.filter(email='joao@atelie.com').exists())
                     self.assertFalse(Empreendimento.objects.filter(nome='Ateliê da Praça').exists())
+
+
+class DescricaoFormatadaTests(TestCase):
+    """F2 · T8: TXT-01 e RN-19 na descrição do empreendimento."""
+
+    def setUp(self):
+        self.client.force_login(criar_conta('is@ufsm.br', papel=Usuario.Papel.IS))
+        self.empreendimento = Empreendimento.objects.create(
+            nome='Ateliê', tipo=Empreendimento.Tipo.COLETIVO, representante=criar_conta('c@a.com'),
+        )
+
+    def test_a02b_descricao_formatada_e_limpa(self):
+        editar = reverse('empreendimentos:editar', args=[self.empreendimento.pk])
+        self.assertContains(self.client.get(editar), '<trix-editor')
+        self.client.post(editar, {
+            'nome': 'Ateliê', 'tipo': Empreendimento.Tipo.COLETIVO,
+            'descricao': (
+                '<div><strong>Feito à mão</strong> <a href="https://ufsm.br" onclick="roubar()">site</a>'
+                '<script>alert(1)</script></div>'
+            ),
+        })
+        self.empreendimento.refresh_from_db()
+        gravado = self.empreendimento.descricao
+        self.assertNotIn('script', gravado)
+        self.assertNotIn('onclick', gravado)
+        self.assertIn('<strong>Feito à mão</strong>', gravado)
+
+        perfil = self.client.get(reverse('empreendimentos:perfil', args=[self.empreendimento.pk]))
+        self.assertContains(perfil, '<strong>Feito à mão</strong>', html=False)
+        self.assertContains(
+            perfil, '<a href="https://ufsm.br" target="_blank" rel="noopener noreferrer">site</a>',
+        )
+
+    def test_a02b_criacao_tem_o_editor(self):
+        self.assertContains(self.client.get(reverse('criar_usuario')), '<trix-editor')
+
+
+class MigracaoDaDescricaoTests(TransactionTestCase):
+    """F2 · T8: a 0007 converte a descrição em HTML, e a reversa devolve texto simples."""
+
+    serialized_rollback = True  # ver MigracaoDoTipoTests
+
+    antes = [('empreendimentos', '0006_tipo_representante_unico')]
+    depois = [('empreendimentos', '0007_descricao_html')]
+
+    migrar = MigracaoDoTipoTests.migrar
+    tearDown = MigracaoDoTipoTests.tearDown
+
+    def test_migracao_descricao_vira_html_e_reversa_restaura(self):
+        apps = self.migrar(self.antes)
+        Antigo = apps.get_model('empreendimentos', 'Empreendimento')
+        criar = lambda email, descricao: Antigo.objects.create(
+            representante_id=criar_conta(email).pk, nome='E', tipo='outro', descricao=descricao,
+        )
+        textos = {
+            'linhas': criar('a@a.com', 'Peças à mão.\nFeira & loja\n\nTipo anterior: Artesanato'),
+            'vazio': criar('b@b.com', ''),
+            'menor': criar('c@c.com', 'a < b'),
+        }
+        originais = {chave: e.descricao for chave, e in textos.items()}
+
+        apps = self.migrar(self.depois)
+        Novo = apps.get_model('empreendimentos', 'Empreendimento')
+        convertido = {chave: Novo.objects.get(pk=e.pk).descricao for chave, e in textos.items()}
+        self.assertEqual(
+            convertido['linhas'],
+            '<p>Peças à mão.<br>Feira &amp; loja</p>\n\n<p>Tipo anterior: Artesanato</p>',
+        )
+        self.assertEqual(convertido['vazio'], '')
+        self.assertEqual(convertido['menor'], '<p>a &lt; b</p>')
+
+        apps = self.migrar(self.antes)
+        Antigo = apps.get_model('empreendimentos', 'Empreendimento')
+        for chave, e in textos.items():
+            with self.subTest(chave=chave):
+                self.assertEqual(Antigo.objects.get(pk=e.pk).descricao, originais[chave])

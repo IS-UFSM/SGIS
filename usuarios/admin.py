@@ -1,5 +1,6 @@
 import copy
 
+from django import forms
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import AdminPasswordChangeForm, AdminUserCreationForm
@@ -7,6 +8,7 @@ from django.contrib.auth.models import Group
 from django.core.exceptions import PermissionDenied
 
 from empreendimentos.forms import EmpreendimentoCadastroForm
+from sgis.texto import TextoFormatadoField
 
 from . import regras
 from .models import Usuario
@@ -38,6 +40,9 @@ class UsuarioAdminCreationForm(AdminUserCreationForm):
 
         for nome, campo in EmpreendimentoCadastroForm.base_fields.items():
             campo_admin = copy.deepcopy(campo)
+            if isinstance(campo_admin, TextoFormatadoField):
+                # O /admin/ não carrega o editor: o texto simples vira parágrafos (TXT-01).
+                campo_admin.widget = forms.Textarea(attrs={'rows': 3})
             campo_admin.required = (
                 self.data.get('papel') == Usuario.Papel.EMPREENDEDOR
                 and campo.required
