@@ -21,6 +21,41 @@
       }
     }
   </script>
+  {# TXT-01: mini editor de texto formatado. Versão fixada; a limpeza é sempre no servidor (RN-19). #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/trix@2.1.19/dist/trix.css">
+  <script src="https://cdn.jsdelivr.net/npm/trix@2.1.19/dist/trix.umd.min.js"></script>
+  <script>
+    if (window.Trix) {
+      Object.assign(Trix.config.lang, {
+        bold: 'Negrito', italic: 'Itálico', link: 'Link', bullets: 'Lista',
+        numbers: 'Lista numerada', urlPlaceholder: 'Cole o endereço (https://…)',
+        unlink: 'Desfazer link', captionPlaceholder: 'Legenda',
+      });
+    }
+    // TXT-01: sem anexos (imagens e arquivos).
+    document.addEventListener('trix-file-accept', function (evento) { evento.preventDefault(); });
+  </script>
+  <style>
+    /* TXT-01: só negrito, itálico, link e listas. */
+    trix-toolbar .trix-button-group--file-tools,
+    trix-toolbar .trix-button-group--history-tools,
+    trix-toolbar [data-trix-attribute="strike"],
+    trix-toolbar [data-trix-attribute="heading1"],
+    trix-toolbar [data-trix-attribute="quote"],
+    trix-toolbar [data-trix-attribute="code"],
+    trix-toolbar [data-trix-action="decreaseNestingLevel"],
+    trix-toolbar [data-trix-action="increaseNestingLevel"] { display: none; }
+    trix-editor.trix-sgis {
+      min-height: 8rem; background: #fff; border: 1px solid #cbd5e1;
+      border-radius: 0.5rem; padding: 0.625rem 0.875rem; font-size: 0.875rem;
+    }
+    trix-editor.trix-sgis:focus { outline: 2px solid #1a6b4f; outline-offset: 1px; }
+    /* O Tailwind zera listas e links; o texto formatado os devolve. */
+    .texto-formatado ul { list-style: disc; padding-left: 1.25rem; }
+    .texto-formatado ol { list-style: decimal; padding-left: 1.25rem; }
+    .texto-formatado a { color: #1a6b4f; text-decoration: underline; }
+    .texto-formatado p + p { margin-top: 0.5rem; }
+  </style>
 </head>
 <body class="min-h-full font-sans antialiased text-slate-800 bg-slate-50 flex flex-col {% block body_class %}{% endblock %}">
   {% block conteudo %}{% endblock %}

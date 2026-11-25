@@ -1,5 +1,6 @@
 from django import forms
 
+from sgis.texto import TextoFormatadoField
 from usuarios.forms import CLASSES_INPUT
 
 from .models import Empreendimento
@@ -7,6 +8,8 @@ from .models import Empreendimento
 
 class EmpreendimentoCadastroForm(forms.ModelForm):
     """ACE-05: dados do empreendimento informados ao criar o empreendedor (F1, decisão 7.1)."""
+
+    descricao = TextoFormatadoField(label='Descrição', required=False)  # TXT-01
 
     class Meta:
         model = Empreendimento
@@ -29,10 +32,6 @@ class EmpreendimentoCadastroForm(forms.ModelForm):
             }),
             # F2: o tipo passou a ser uma lista fechada (EMP-01).
             'tipo': forms.Select(attrs={'class': CLASSES_INPUT}),
-            'descricao': forms.Textarea(attrs={
-                'rows': 3,
-                'class': CLASSES_INPUT,
-            }),
             'email_contato': forms.EmailInput(attrs={
                 'placeholder': 'Ex.: contato@atelie.com',
                 'class': CLASSES_INPUT,
@@ -47,13 +46,14 @@ class EmpreendimentoCadastroForm(forms.ModelForm):
 class EmpreendimentoForm(forms.ModelForm):
     """EMP-01 (spec 3.3): a IS edita os dados. A conta do empreendimento fica de fora (3.2.4, A-05)."""
 
+    descricao = TextoFormatadoField(label='Descrição', required=False)  # TXT-01
+
     class Meta:
         model = Empreendimento
         fields = ['nome', 'tipo', 'descricao', 'email_contato', 'telefone_contato']
         widgets = {
             'nome': forms.TextInput(attrs={'class': CLASSES_INPUT}),
             'tipo': forms.Select(attrs={'class': CLASSES_INPUT}),
-            'descricao': forms.Textarea(attrs={'rows': 4, 'class': CLASSES_INPUT}),
             'email_contato': forms.EmailInput(attrs={'class': CLASSES_INPUT}),
             'telefone_contato': forms.TextInput(attrs={'class': CLASSES_INPUT}),
         }
