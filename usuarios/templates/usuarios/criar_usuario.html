@@ -15,7 +15,7 @@
     </p>
 
     {% for mensagem in messages %}
-      <div class="mt-6 p-4 rounded-xl text-sm {% if mensagem.tags == 'error' %}bg-red-50 border border-red-200 text-red-700{% else %}bg-emerald-50 border border-emerald-200 text-emerald-800{% endif %}" role="status">
+      <div class="mt-6 p-4 rounded-xl text-sm {% if mensagem.tags == 'error' %}bg-red-50 border border-red-200 text-red-700{% elif mensagem.tags == 'warning' %}bg-amber-50 border border-amber-200 text-amber-800{% else %}bg-emerald-50 border border-emerald-200 text-emerald-800{% endif %}" role="status">
         {{ mensagem }}
       </div>
     {% endfor %}

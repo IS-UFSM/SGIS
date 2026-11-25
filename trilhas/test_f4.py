@@ -523,6 +523,128 @@ class EtapasTests(TestCase):
         self.assertEqual(self.em_andamento().get().trilha.etapa, Trilha.Etapa.INCUBACAO)
 
 
+class PreIncubacaoTests(TestCase):
+    """INS-02 e 3.3: entrada automática na Pré-incubação (T4)."""
+
+    def setUp(self):
+        self.is_user = Usuario.objects.create_user('is@ufsm.br', 'IS', 'senha-forte-123',
+                                                   papel=Usuario.Papel.IS)
+        self.pre = Trilha.objects.get(etapa=Trilha.Etapa.PRE_INCUBACAO)  # criada pela migração
+        self.contador = 0
+
+    def criar_empreendimento(self, nome='Ateliê'):
+        self.contador += 1
+        dono = Usuario.objects.create_user(f'dono{self.contador}@atelie.com', nome,
+                                           'senha-forte-123', papel=Usuario.Papel.EMPREENDEDOR)
+        return Empreendimento.objects.create(nome=nome, tipo=Empreendimento.Tipo.COLETIVO,
+                                             representante=dono)
+
+    def pre_em_rascunho(self):
+        Trilha.objects.filter(pk=self.pre.pk).update(status=Trilha.Status.RASCUNHO,
+                                                     publicada_em=None)
+        self.pre.refresh_from_db()
+        if not self.pre.atividades.filter(arquivada_em__isnull=True).exists():
+            regras.acrescentar_atividade(self.pre, self.is_user,
+                                         {'titulo': 'Boas-vindas', 'tipo': 'leitura'})
+
+    def publicar_pre(self):
+        regras.publicar(self.pre, self.is_user)
+
+    def na_pre(self, empreendimento):
+        return empreendimento.inscricoes.filter(trilha=self.pre)
+
+    def test_a05_empreendimento_novo_entra_na_pre_incubacao_sem_autor(self):
+        empreendimento = self.criar_empreendimento()
+        inscricao = self.na_pre(empreendimento).get()
+        self.assertEqual(inscricao.status, Inscricao.Status.ATIVA)
+        self.assertIsNone(inscricao.inscrito_por)
+        self.assertEqual(regras.etapa_atual(empreendimento), Trilha.Etapa.PRE_INCUBACAO)
+        self.assertIsNone(regras.aviso_pre_incubacao())
+
+    def test_a06_pre_em_rascunho_fica_sem_etapa_e_avisa_is(self):
+        self.pre_em_rascunho()
+        empreendimento = self.criar_empreendimento()
+        self.assertFalse(empreendimento.inscricoes.exists())
+        self.assertIsNone(regras.etapa_atual(empreendimento))
+
+        # A IS vê o aviso ao criar o empreendedor pela tela.
+        self.client.force_login(self.is_user)
+        resposta = self.client.post(reverse('criar_usuario'), {
+            'nome': 'Horta', 'email': 'horta@coletivo.com', 'papel': Usuario.Papel.EMPREENDEDOR,
+            'senha': 'senha-super-segura',
+            'empreendimento-nome': 'Horta', 'empreendimento-tipo': Empreendimento.Tipo.COLETIVO,
+        }, follow=True)
+        avisos = [m for m in resposta.context['messages'] if m.level_tag == 'warning']
+        self.assertEqual(len(avisos), 1)
+        self.assertIn(self.pre.titulo, str(avisos[0]))
+        self.assertFalse(Empreendimento.objects.get(nome='Horta').inscricoes.exists())
+
+    def test_a06_sem_aviso_ao_criar_com_pre_publicada(self):
+        self.client.force_login(self.is_user)
+        resposta = self.client.post(reverse('criar_usuario'), {
+            'nome': 'Horta', 'email': 'horta@coletivo.com', 'papel': Usuario.Papel.EMPREENDEDOR,
+            'senha': 'senha-super-segura',
+            'empreendimento-nome': 'Horta', 'empreendimento-tipo': Empreendimento.Tipo.COLETIVO,
+        }, follow=True)
+        self.assertFalse([m for m in resposta.context['messages'] if m.level_tag == 'warning'])
+
+    def test_a06_publicar_pre_inscreve_pendentes(self):
+        self.pre_em_rascunho()
+        pendentes = [self.criar_empreendimento('Ateliê'), self.criar_empreendimento('Horta')]
+        desativado = self.criar_empreendimento('Fechado')
+        desativado.desativado_em = timezone.now()
+        desativado.save(update_fields=['desativado_em'])
+
+        self.publicar_pre()
+
+        for empreendimento in pendentes:
+            with self.subTest(empreendimento=empreendimento.nome):
+                inscricao = self.na_pre(empreendimento).get()
+                self.assertEqual(inscricao.status, Inscricao.Status.ATIVA)
+                self.assertIsNone(inscricao.inscrito_por)
+        self.assertFalse(desativado.inscricoes.exists())
+
+    def test_a06_publicar_pela_tela_inscreve_pendentes(self):
+        self.pre_em_rascunho()
+        empreendimento = self.criar_empreendimento()
+        self.client.force_login(self.is_user)
+        self.client.post(reverse('trilhas:acao', args=[self.pre.pk, 'publicar']))
+        self.pre.refresh_from_db()
+        self.assertEqual(self.pre.status, Trilha.Status.PUBLICADA)
+        self.assertTrue(self.na_pre(empreendimento).exists())
+
+    def test_a06_publicar_e_atomico(self):
+        self.pre_em_rascunho()
+        self.criar_empreendimento()
+        with mock.patch.object(regras, 'inscrever_pendentes_na_pre_incubacao',
+                               side_effect=RuntimeError):
+            with self.assertRaises(RuntimeError):
+                self.publicar_pre()
+        self.pre.refresh_from_db()
+        self.assertEqual(self.pre.status, Trilha.Status.RASCUNHO)
+
+    def test_a07_quem_concluiu_nao_e_reinscrito(self):
+        publicar_etapas()
+        concluiu = self.criar_empreendimento('Ateliê')
+        for etapa in regras.ETAPAS_EM_ORDEM:
+            regras.avancar_etapa(concluiu, self.is_user, etapa)
+        self.assertTrue(regras.incubacao_concluida(concluiu))
+        cancelado = self.criar_empreendimento('Horta')  # passou pela Pré-incubação e saiu
+        regras.alterar_status(self.na_pre(cancelado).get(), self.is_user, 'cancelar')
+        antes = Inscricao.objects.count()
+
+        # A Pré-incubação recebe atividade nova e é publicada de novo.
+        regras.acrescentar_atividade(self.pre, self.is_user,
+                                     {'titulo': 'Nova leitura', 'tipo': 'leitura'})
+        self.pre_em_rascunho()
+        self.publicar_pre()
+
+        self.assertEqual(Inscricao.objects.count(), antes)
+        self.assertEqual(self.na_pre(concluiu).count(), 1)
+        self.assertEqual(self.na_pre(cancelado).count(), 1)
+        self.assertTrue(regras.incubacao_concluida(concluiu))
+
+
 class InscricaoEmLoteTests(TestCase):
     """INS-10 (spec 3.8): inscrição em lote pela IS (T7)."""
 

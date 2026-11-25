@@ -107,8 +107,13 @@ def exigir_edicao(usuario, trilha):
 
 # Estados
 
+@transaction.atomic
 def publicar(trilha, usuario):
-    """TRL-05: rascunho → publicada, com pelo menos uma atividade ativa (A-09, A-10)."""
+    """TRL-05: rascunho → publicada, com pelo menos uma atividade ativa (A-09, A-10).
+
+    Publicar a Pré-incubação inscreve nela, na mesma transação, quem ficou sem etapa
+    enquanto ela estava em rascunho (INS-02, 3.3.2).
+    """
     exigir_edicao(usuario, trilha)
     if trilha.status != Trilha.Status.RASCUNHO:
         raise RegraViolada('Só uma trilha em rascunho pode ser publicada.')
@@ -117,6 +122,8 @@ def publicar(trilha, usuario):
     trilha.status = Trilha.Status.PUBLICADA
     trilha.publicada_em = timezone.now()
     trilha.save(update_fields=['status', 'publicada_em'])
+    if trilha.etapa == Trilha.Etapa.PRE_INCUBACAO:
+        inscrever_pendentes_na_pre_incubacao()
 
 
 def arquivar(trilha, usuario):
@@ -292,6 +299,50 @@ def inscrever(empreendimento, trilha, usuario):
     if empreendimento.inscricoes.filter(trilha=trilha, status__in=STATUS_EM_ANDAMENTO).exists():
         raise RegraViolada('Este empreendimento já está inscrito nesta trilha.')
     return _criar_inscricao(empreendimento, trilha, usuario)
+
+
+def trilha_pre_incubacao():
+    """A trilha de etapa Pré-incubação, ou None se ela não existe."""
+    return Trilha.objects.filter(etapa=Trilha.Etapa.PRE_INCUBACAO).first()
+
+
+def inscrever_na_pre_incubacao(empreendimento):
+    """INS-02 (3.3.1, 3.3.3): o empreendimento novo entra na Pré-incubação, sem autor (A-05).
+
+    Só se ela estiver publicada; senão, ele fica sem etapa até a publicação (A-06).
+    Devolve a inscrição nova, ou None.
+    """
+    trilha = trilha_pre_incubacao()
+    if trilha is None or trilha.status != Trilha.Status.PUBLICADA:
+        return None
+    return _criar_inscricao(empreendimento, trilha, None)
+
+
+def inscrever_pendentes_na_pre_incubacao():
+    """INS-02 (3.3.2): ao publicar a Pré-incubação, inscreve os ativos que nunca tiveram etapa.
+
+    Quem já passou por alguma etapa, em qualquer status, fica de fora: assim, quem
+    concluiu a incubação não é reinscrito (A-07). Devolve as inscrições novas.
+    """
+    trilha = trilha_pre_incubacao()
+    if trilha is None or trilha.status != Trilha.Status.PUBLICADA:
+        return []
+    pendentes = Empreendimento.objects.filter(desativado_em__isnull=True).exclude(
+        pk__in=Inscricao.objects.exclude(trilha__etapa='').values('empreendimento'),
+    )
+    return [_criar_inscricao(empreendimento, trilha, None) for empreendimento in pendentes]
+
+
+def aviso_pre_incubacao():
+    """3.3.2 e A-06: o aviso à IS quando a Pré-incubação não está publicada, ou None."""
+    trilha = trilha_pre_incubacao()
+    if trilha is not None and trilha.status == Trilha.Status.PUBLICADA:
+        return None
+    nome = trilha.titulo if trilha else Trilha.Etapa.PRE_INCUBACAO.label
+    return (
+        f'A trilha "{nome}" não está publicada: o empreendimento ficará sem etapa '
+        'e será inscrito nela quando ela for publicada.'
+    )
 
 
 @transaction.atomic

@@ -5,26 +5,21 @@ from django.dispatch import receiver
 
 from empreendimentos.models import Empreendimento
 
-from .models import Inscricao, Trilha
+from . import regras
 
 logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Empreendimento)
 def inscrever_na_pre_incubacao(sender, instance, created, raw=False, **kwargs):
-    """Todo empreendimento novo entra automaticamente na trilha de pré-incubação."""
+    """INS-02: todo empreendimento novo entra na Pré-incubação, se ela estiver publicada."""
     if not created or raw:
         return
 
-    trilha = Trilha.objects.filter(etapa=Trilha.Etapa.PRE_INCUBACAO).first()
-    if trilha is None:
+    if regras.trilha_pre_incubacao() is None:
         logger.warning(
             'Nenhuma trilha de pré-incubação definida; %s não foi inscrito.', instance,
         )
         return
 
-    Inscricao.objects.get_or_create(
-        empreendimento=instance,
-        trilha=trilha,
-        defaults={'status': Inscricao.Status.ATIVA},
-    )
+    regras.inscrever_na_pre_incubacao(instance)  # em rascunho, fica sem etapa (3.3.2)
