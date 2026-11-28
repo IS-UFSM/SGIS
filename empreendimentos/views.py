@@ -23,6 +23,11 @@ FILTROS_SITUACAO = {
 SEM_ETAPA = 'sem'
 FILTROS_ETAPA = [*Trilha.Etapa.choices, (SEM_ETAPA, 'Sem etapa')]
 
+ACOES_SITUACAO = {
+    'desativar': (regras.desativar, 'Empreendimento desativado.'),
+    'reativar': (regras.reativar, 'Empreendimento reativado.'),
+}
+
 
 @papel_requerido(Usuario.Papel.IS)
 def lista_view(request):
@@ -107,6 +112,17 @@ def editar_view(request, pk):
         'empreendimento': empreendimento,
         'nome_atual': nome_atual,
     })
+
+
+@require_POST
+@papel_requerido(Usuario.Papel.IS)
+def situacao_view(request, pk, acao):
+    """EMP-06: a IS desativa ou reativa o empreendimento, sempre por POST."""
+    empreendimento = get_object_or_404(Empreendimento, pk=pk)
+    funcao, sucesso = ACOES_SITUACAO[acao]
+    funcao(empreendimento, request.user)
+    messages.success(request, sucesso)
+    return redirect('empreendimentos:perfil', pk=empreendimento.pk)
 
 
 # Contatos (EMP-07, spec 3.3a): só a IS cria, edita, troca o responsável e remove (A-16).

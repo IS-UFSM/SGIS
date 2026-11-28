@@ -6,6 +6,7 @@ estas funções. Falta de permissão vira `PermissionDenied` (403).
 
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.utils import timezone
 
 from trilhas import regras as regras_trilhas
 from usuarios.models import Usuario
@@ -36,6 +37,22 @@ def exigir_edicao(usuario):
     """Spec 3.3.1 e 3.3a.5: só a IS edita os dados e os contatos; os demais recebem 403 (A-03)."""
     if not (usuario.is_authenticated and usuario.papel == Usuario.Papel.IS):
         raise PermissionDenied
+
+
+def desativar(empreendimento, usuario):
+    """EMP-06: desativa sem apagar dados, inscrições ou a conta do empreendimento."""
+    exigir_edicao(usuario)
+    if empreendimento.desativado_em is None:
+        empreendimento.desativado_em = timezone.now()
+        empreendimento.save(update_fields=['desativado_em'])
+
+
+def reativar(empreendimento, usuario):
+    """EMP-06: devolve o acesso sem alterar a conta nem as inscrições."""
+    exigir_edicao(usuario)
+    if empreendimento.desativado_em is not None:
+        empreendimento.desativado_em = None
+        empreendimento.save(update_fields=['desativado_em'])
 
 
 # Contatos (EMP-07, spec 3.3a). Só a IS mexe neles (3.3a.5).

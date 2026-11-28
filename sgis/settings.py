@@ -60,6 +60,7 @@ INSTALLED_APPS = [
 
 # Modelo de usuário customizado
 AUTH_USER_MODEL = 'usuarios.Usuario'
+AUTHENTICATION_BACKENDS = ['usuarios.backends.SgisBackend']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
