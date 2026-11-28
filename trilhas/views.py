@@ -66,6 +66,7 @@ def detalhe_trilha_view(request, pk):
         'trilha': trilha,
         'ativas': [a for a in atividades if a.arquivada_em is None],
         'arquivadas': [a for a in atividades if a.arquivada_em is not None],
+        'inscricao_pausada': regras.inscricao_pausada_do_empreendedor(request.user, trilha),
         'pode_editar': pode_editar,
         'exige_confirmacao': regras.exige_confirmacao(request.user, trilha),
         'pode_publicar': pode_editar and trilha.status == Trilha.Status.RASCUNHO,
@@ -414,7 +415,7 @@ def etapa_definir_view(request, pk):
 
 @papel_requerido(Usuario.Papel.EMPREENDEDOR)
 def trilhas_inscritas_view(request):
-    """Empreendedor vê as trilhas em que seu empreendimento está inscrito (canceladas ficam ocultas)."""
+    """INS-09: empreendedor vê inscrições do próprio empreendimento, sem as canceladas."""
     inscricoes = (
         Inscricao.objects
         .filter(
@@ -425,4 +426,8 @@ def trilhas_inscritas_view(request):
         .select_related('empreendimento', 'trilha')
         .order_by('empreendimento__nome', '-inscrito_em')
     )
-    return render(request, 'trilhas/trilhas_inscritas.html', {'inscricoes': inscricoes})
+    return render(request, 'trilhas/trilhas_inscritas.html', {
+        'inscricoes': inscricoes,
+        'inscricoes_atuais': inscricoes.filter(status__in=regras.STATUS_EM_ANDAMENTO),
+        'historico': inscricoes.filter(status=Inscricao.Status.CONCLUIDA),
+    })

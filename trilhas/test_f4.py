@@ -14,7 +14,7 @@ from sgis.excecoes import RegraViolada
 from usuarios.models import Usuario
 
 from . import regras
-from .models import Inscricao, Trilha
+from .models import AtividadeTrilha, Inscricao, Trilha
 
 ANTES_DA_0009 = ('trilhas', '0008_remover_tipo_pre_incubacao')
 
@@ -146,6 +146,97 @@ class InscricaoPersonalizadaTests(TestCase):
                 with self.assertRaises(PermissionDenied):
                     regras.inscrever(self.empreendimento, self.trilha, usuario)
         self.assertFalse(self.inscricoes().exists())
+
+
+class VisaoDoEmpreendedorTests(TestCase):
+    """INS-08, INS-09 e J-4: trilhas do próprio empreendimento e pausa visível."""
+
+    def setUp(self):
+        self.empreendimento, self.trilha = criar_par()
+        self.is_user = Usuario.objects.create_user(
+            'is@ufsm.br', 'IS', 'senha-forte-123', papel=Usuario.Papel.IS,
+        )
+        self.client.force_login(self.empreendimento.representante)
+
+    def nova_trilha(self, titulo):
+        return Trilha.objects.create(
+            titulo=titulo,
+            usuario_criador=self.trilha.usuario_criador,
+            status=Trilha.Status.PUBLICADA,
+        )
+
+    def test_a17_empreendedor_ve_as_proprias_e_nao_as_de_outro(self):
+        pausada = regras.inscrever(
+            self.empreendimento, self.nova_trilha('Trilha pausada'), self.is_user,
+        )
+        regras.alterar_status(pausada, self.is_user, 'pausar')
+        concluida = regras.inscrever(
+            self.empreendimento, self.nova_trilha('Trilha concluída'), self.is_user,
+        )
+        regras.alterar_status(concluida, self.is_user, 'concluir')
+        cancelada = regras.inscrever(
+            self.empreendimento, self.nova_trilha('Trilha cancelada'), self.is_user,
+        )
+        regras.alterar_status(cancelada, self.is_user, 'cancelar')
+
+        outro = Usuario.objects.create_user(
+            'maria@horta.com', 'Maria', 'senha-forte-123', papel=Usuario.Papel.EMPREENDEDOR,
+        )
+        outro_empreendimento = Empreendimento.objects.create(
+            nome='Horta', tipo='Agricultura', representante=outro,
+        )
+        trilha_de_outro = self.nova_trilha('Trilha de outro')
+        regras.inscrever(outro_empreendimento, trilha_de_outro, self.is_user)
+
+        resposta = self.client.get(reverse('trilhas:inscritas'))
+
+        self.assertContains(resposta, 'Trilha pausada')
+        self.assertContains(resposta, 'Trilha concluída')
+        self.assertContains(resposta, 'Concluída')
+        self.assertContains(resposta, 'Histórico')
+        self.assertNotContains(resposta, 'Trilha cancelada')
+        self.assertNotContains(resposta, 'Trilha de outro')
+        self.assertEqual(
+            self.client.get(reverse('trilhas:detalhe', args=[cancelada.trilha.pk])).status_code,
+            200,
+        )
+
+    def test_a18_inscricao_pausada_mostra_aviso(self):
+        inscricao = regras.inscrever(self.empreendimento, self.trilha, self.is_user)
+        regras.alterar_status(inscricao, self.is_user, 'pausar')
+
+        resposta = self.client.get(reverse('trilhas:detalhe', args=[self.trilha.pk]))
+
+        self.assertTrue(resposta.context['inscricao_pausada'])
+        self.assertContains(resposta, 'Sua inscrição nesta trilha está pausada.')
+
+        regras.alterar_status(inscricao, self.is_user, 'reativar')
+        resposta = self.client.get(reverse('trilhas:detalhe', args=[self.trilha.pk]))
+        self.assertFalse(resposta.context['inscricao_pausada'])
+        self.assertNotContains(resposta, 'Sua inscrição nesta trilha está pausada.')
+
+    def test_j4_inscricao_em_trilha_personalizada(self):
+        atividade = AtividadeTrilha.objects.create(
+            trilha=self.trilha,
+            titulo='Mapear custos',
+            tipo=AtividadeTrilha.Tipo.TAREFA,
+            ordem=1,
+        )
+
+        self.client.force_login(self.is_user)
+        resposta = self.client.post(
+            reverse('trilhas:inscricoes'),
+            {'empreendimento': self.empreendimento.pk, 'trilha': self.trilha.pk},
+        )
+        self.assertRedirects(resposta, reverse('trilhas:inscricoes'))
+
+        self.client.force_login(self.empreendimento.representante)
+        minhas = self.client.get(reverse('trilhas:inscritas'))
+        detalhe = self.client.get(reverse('trilhas:detalhe', args=[self.trilha.pk]))
+
+        self.assertContains(minhas, self.trilha.titulo)
+        self.assertContains(detalhe, 'Personalizada')
+        self.assertContains(detalhe, atividade.titulo)
 
 
 class StatusDaInscricaoTests(TestCase):
