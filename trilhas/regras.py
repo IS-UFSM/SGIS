@@ -81,6 +81,18 @@ def pode_ver(usuario, trilha):
     return trilhas_visiveis(usuario).filter(pk=trilha.pk).exists()
 
 
+def inscricao_pausada_do_empreendedor(usuario, trilha):
+    """INS-08 (spec 3.6): identifica a pausa da inscrição do próprio empreendimento."""
+    if not usuario.is_authenticated or usuario.papel != Usuario.Papel.EMPREENDEDOR:
+        return False
+    return Inscricao.objects.filter(
+        empreendimento__representante=usuario,
+        empreendimento__desativado_em__isnull=True,
+        trilha=trilha,
+        status=Inscricao.Status.PAUSADA,
+    ).exists()
+
+
 # Editar
 
 def pode_editar(usuario, trilha):

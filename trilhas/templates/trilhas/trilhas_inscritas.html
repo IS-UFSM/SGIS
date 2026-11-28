@@ -11,8 +11,11 @@
     <p class="text-slate-500 mt-1 text-sm">Trilhas em que a Incubadora Social inscreveu o seu empreendimento.</p>
   </div>
 
-  <div class="mt-6 space-y-3">
-    {% for inscricao in inscricoes %}
+  <section class="mt-6">
+    <h2 class="font-semibold text-slate-900">Trilhas em andamento</h2>
+
+    <div class="mt-3 space-y-3">
+    {% for inscricao in inscricoes_atuais %}
       {% ifchanged inscricao.empreendimento_id %}
         <h2 class="pt-4 first:pt-0 text-sm font-semibold uppercase tracking-wide text-slate-500">
           {{ inscricao.empreendimento.nome }}
@@ -24,7 +27,7 @@
           <h3 class="font-semibold text-slate-900"><a href="{% url 'trilhas:detalhe' inscricao.trilha.pk %}" class="hover:text-brand hover:underline">{{ inscricao.trilha.titulo }}</a></h3>
           {% if inscricao.status == 'ativa' %}
             <span class="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">{{ inscricao.get_status_display }}</span>
-          {% else %}
+          {% elif inscricao.status == 'pausada' %}
             <span class="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">{{ inscricao.get_status_display }}</span>
           {% endif %}
         </div>
@@ -35,9 +38,40 @@
       </article>
     {% empty %}
       <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center">
-        <p class="text-slate-600 font-medium">Seu empreendimento ainda não está inscrito em nenhuma trilha.</p>
+        <p class="text-slate-600 font-medium">Seu empreendimento não está em nenhuma trilha ativa ou pausada.</p>
       </div>
     {% endfor %}
-  </div>
+    </div>
+  </section>
+
+  {% if historico %}
+    <section class="mt-8">
+      <h2 class="font-semibold text-slate-900">Histórico</h2>
+
+      <div class="mt-3 space-y-3">
+        {% for inscricao in historico %}
+          {% ifchanged inscricao.empreendimento_id %}
+            <h3 class="pt-4 first:pt-0 text-sm font-semibold uppercase tracking-wide text-slate-500">
+              {{ inscricao.empreendimento.nome }}
+            </h3>
+          {% endifchanged %}
+
+          <article class="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm">
+            <div class="flex items-start justify-between gap-3">
+              <h3 class="font-semibold text-slate-900"><a href="{% url 'trilhas:detalhe' inscricao.trilha.pk %}" class="hover:text-brand hover:underline">{{ inscricao.trilha.titulo }}</a></h3>
+              <span class="shrink-0 px-2.5 py-1 text-xs font-semibold rounded-full bg-sky-100 text-sky-800">{{ inscricao.get_status_display }}</span>
+            </div>
+            {% if inscricao.trilha.descricao %}
+              <p class="mt-2 text-sm text-slate-600 whitespace-pre-line">{{ inscricao.trilha.descricao }}</p>
+            {% endif %}
+            <p class="mt-3 text-xs text-slate-500">
+              Inscrito em {{ inscricao.inscrito_em|date:"d/m/Y" }}
+              {% if inscricao.concluido_em %} · concluída em {{ inscricao.concluido_em|date:"d/m/Y" }}{% endif %}
+            </p>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
 </main>
 {% endblock %}

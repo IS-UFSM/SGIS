@@ -40,6 +40,12 @@
       <p class="mt-4 text-sm text-slate-700 whitespace-pre-line">{{ trilha.descricao }}</p>
     {% endif %}
 
+    {% if inscricao_pausada %}
+      <p class="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900" role="alert">
+        Sua inscrição nesta trilha está pausada. Enquanto ela estiver pausada, você não poderá marcar atividades.
+      </p>
+    {% endif %}
+
     {% if pode_editar and exige_confirmacao %}
       <p class="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900" role="note">
         Esta trilha é de <strong>{{ trilha.usuario_criador.nome }}</strong>. Cada alteração feita pela Incubadora Social pede confirmação.
