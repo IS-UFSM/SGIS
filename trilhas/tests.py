@@ -325,9 +325,13 @@ class TrilhasInscritasTests(TestCase):
         for titulo in ('Cancelada', 'De outro', 'Sem inscrição'):
             self.assertNotContains(resposta, titulo)
 
-    def test_empreendimento_desativado_nao_mostra_trilhas(self):
+    def test_empreendimento_desativado_perde_acesso_as_trilhas(self):
         self.emp.desativado_em = timezone.now()
         self.emp.save()
         self.client.force_login(self.dono)
         resposta = self.client.get(self.url)
-        self.assertEqual(len(resposta.context['inscricoes']), 0)
+        self.assertRedirects(
+            resposta,
+            f'{reverse("login")}?next={self.url}',
+            fetch_redirect_response=False,
+        )

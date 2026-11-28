@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase, override_settings
+from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -10,6 +10,7 @@ from trilhas import regras as regras_trilhas
 from trilhas.models import Inscricao, Trilha
 from usuarios import regras as regras_usuarios
 from usuarios.models import Usuario
+from sgis.excecoes import RegraViolada
 
 from .models import Contato, Empreendimento
 
@@ -257,6 +258,121 @@ class PerfilTests(TestCase):
         resposta = self.client.get(reverse('empreendimentos:lista'))
         self.assertContains(resposta, f'href="{self.url(self.a)}"')
         self.assertContains(resposta, f'href="{self.url(self.b)}"')
+
+
+class DesativacaoTests(TestCase):
+    """F2 · T6: EMP-06, desativar sem apagar e bloquear o acesso da conta."""
+
+    def setUp(self):
+        self.is_user = criar_conta('is@ufsm.br', papel=Usuario.Papel.IS)
+        self.conta = criar_conta('conta@atelie.com')
+        self.empreendimento = Empreendimento.objects.create(
+            nome='Ateliê', tipo=Empreendimento.Tipo.COLETIVO, representante=self.conta,
+        )
+        self.trilha = Trilha.objects.create(
+            titulo='Oficina', status=Trilha.Status.PUBLICADA, usuario_criador=self.is_user,
+        )
+        self.inscricao = Inscricao.objects.create(
+            empreendimento=self.empreendimento,
+            trilha=self.trilha,
+            status=Inscricao.Status.PAUSADA,
+        )
+        self.client.force_login(self.is_user)
+
+    def situacao_url(self, acao):
+        return reverse('empreendimentos:situacao', args=[self.empreendimento.pk, acao])
+
+    def test_a11_desativado_fica_no_filtro_e_fora_da_inscricao(self):
+        perfil = self.client.get(reverse('empreendimentos:perfil', args=[self.empreendimento.pk]))
+        self.assertContains(perfil, self.situacao_url('desativar'))
+
+        inscricoes_antes = list(
+            Inscricao.objects.filter(empreendimento=self.empreendimento)
+            .values_list('pk', 'status')
+        )
+        resposta = self.client.post(self.situacao_url('desativar'))
+        self.assertRedirects(
+            resposta,
+            reverse('empreendimentos:perfil', args=[self.empreendimento.pk]),
+        )
+
+        self.empreendimento.refresh_from_db()
+        self.assertFalse(self.empreendimento.ativo)
+        self.assertTrue(Empreendimento.objects.filter(pk=self.empreendimento.pk).exists())
+        self.assertEqual(
+            list(
+                Inscricao.objects.filter(empreendimento=self.empreendimento)
+                .values_list('pk', 'status')
+            ),
+            inscricoes_antes,
+        )
+
+        desativados = self.client.get(
+            reverse('empreendimentos:lista'), {'situacao': 'desativados'},
+        )
+        self.assertContains(desativados, 'Ateliê')
+        ativos = self.client.get(reverse('empreendimentos:lista'), {'situacao': 'ativos'})
+        self.assertNotContains(ativos, 'Ateliê')
+
+        inscricoes = self.client.get(reverse('trilhas:inscricoes'))
+        empreendimentos_disponiveis = inscricoes.context['form'].fields['empreendimento'].queryset
+        self.assertNotIn(
+            self.empreendimento.pk,
+            empreendimentos_disponiveis.values_list('pk', flat=True),
+        )
+        with self.assertRaises(RegraViolada):
+            regras_trilhas.inscrever(self.empreendimento, self.trilha, self.is_user)
+
+        perfil = self.client.get(reverse('empreendimentos:perfil', args=[self.empreendimento.pk]))
+        self.assertContains(perfil, self.situacao_url('reativar'))
+
+    def test_a12_representante_nao_entra_ate_reativar(self):
+        sessao_do_representante = Client()
+        sessao_do_representante.force_login(self.conta)
+        senha_hash = self.conta.password
+        inscricoes_antes = list(
+            Inscricao.objects.filter(empreendimento=self.empreendimento)
+            .values_list('pk', 'status')
+        )
+
+        self.client.post(self.situacao_url('desativar'))
+        self.conta.refresh_from_db()
+        self.assertTrue(self.conta.is_active)
+        self.assertRedirects(
+            sessao_do_representante.get(reverse('home')),
+            f'{reverse("login")}?next={reverse("home")}',
+            fetch_redirect_response=False,
+        )
+
+        bloqueado = Client().post(reverse('login'), {
+            'email': self.conta.email,
+            'senha': 'senha-forte-123',
+        })
+        self.assertEqual(bloqueado.status_code, 200)
+        self.assertEqual(
+            bloqueado.context['form'].non_field_errors(),
+            ['e-mail ou senha incorretos'],
+        )
+
+        self.client.post(self.situacao_url('reativar'))
+        self.empreendimento.refresh_from_db()
+        self.conta.refresh_from_db()
+        self.assertTrue(self.empreendimento.ativo)
+        self.assertTrue(self.conta.is_active)
+        self.assertEqual(self.conta.password, senha_hash)
+        self.assertEqual(
+            list(
+                Inscricao.objects.filter(empreendimento=self.empreendimento)
+                .values_list('pk', 'status')
+            ),
+            inscricoes_antes,
+        )
+
+        acesso_devolvido = Client().post(reverse('login'), {
+            'email': self.conta.email,
+            'senha': 'senha-forte-123',
+        })
+        self.assertRedirects(acesso_devolvido, reverse('home'), fetch_redirect_response=False)
 
 
 class EdicaoTests(TestCase):
